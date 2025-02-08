@@ -47,7 +47,7 @@ jobs:
           DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg')
           cd ${RUNNER_TEMP}
           curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
-          tar --strip-components=2 xf freebsd-sysroot.pkg
+          tar xf freebsd-sysroot.pkg --strip-components=2
 
       - name: Build
         run: |
@@ -81,14 +81,14 @@ jobs:
           cd dist
           curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
           if [[ ${{ matrix.platform }} = windows-msvc ]]; then
-            bsdtar --format zip cf gnuplot-${TARGET_TRIPLE}.zip *
+            bsdtar --format zip cf ../gnuplot-${TARGET_TRIPLE}.zip *
           else
-            XZ_OPT=-9 tar cJf gnuplot-${TARGET_TRIPLE}.tar.xz *
+            XZ_OPT=-9 tar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
           fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.TARGET_TRIPLE }}
-          path: dist/gnuplot-${TARGET_TRIPLE}.*
+          path: gnuplot-${TARGET_TRIPLE}.*
           if-no-files-found: error
