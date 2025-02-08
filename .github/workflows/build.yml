@@ -3,6 +3,7 @@ on: push
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         arch: [x86_64, aarch64]
         platform: [linux-musl, windows-msvc, macos, freebsd]
@@ -44,7 +45,7 @@ jobs:
         if: ${{ matrix.platform == 'freebsd' }}
         run: |
           FREEBSD_ARCH=$(echo -n ${{ matrix.arch }} | sed 's/^x86_/amd/')
-          DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg')
+          DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg; s/-/./g')
           cd ${RUNNER_TEMP}
           curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
           bsdtar xf freebsd-sysroot.pkg --strip-components=2
