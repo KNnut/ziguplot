@@ -37,7 +37,8 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug) {
         lib.want_lto = target.result.ofmt != .macho;
         lib.root_module.strip = true;
-        lib.root_module.unwind_tables = .none;
+        if (target.result.os.tag != .windows)
+            lib.root_module.unwind_tables = .none;
     }
 
     const module = b.addModule("ziguplot", .{
@@ -388,7 +389,8 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug) {
         exe.want_lto = target.result.ofmt != .macho;
         exe.root_module.strip = true;
-        exe.root_module.unwind_tables = .none;
+        if (target.result.os.tag != .windows)
+            exe.root_module.unwind_tables = .none;
     }
 
     {
