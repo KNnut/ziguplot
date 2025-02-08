@@ -1,0 +1,10 @@
+--- !tapi-tbd
+tbd-version:     4
+targets:         [ x86_64-macos, x86_64-maccatalyst, x86_64h-macos, x86_64h-maccatalyst,
+                   arm64-macos, arm64-maccatalyst, arm64e-macos, arm64e-maccatalyst ]
+install-name:    '/Library/Frameworks/AquaTerm.framework/Versions/A/AquaTerm'
+exports:
+  - targets:         [ x86_64-macos, x86_64-maccatalyst, x86_64h-macos, x86_64h-maccatalyst,
+                       arm64-macos, arm64-maccatalyst, arm64e-macos, arm64e-maccatalyst ]
+    symbols:         [ '_OBJC_CLASS_$_AQTAdapter', _AQTAlignMiddle, _AQTButtLineCapStyle, _AQTRoundLineCapStyle ]
+...

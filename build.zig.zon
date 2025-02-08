@@ -1,0 +1,25 @@
+.{
+    .name = "ziguplot",
+    .version = "0.0.1",
+    .dependencies = .{
+        .gnuplot = .{
+            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/6f43f41786f79395cd3d184eec4f78fc4fabb1a1.tar.gz",
+            .hash = "12201a66be50caf6a76d32ab51dc8d9c8d7148360eb27488bd3f87ef676606301115",
+        },
+        .aquaterm = .{
+            .path = "deps/aquaterm",
+            .lazy = true,
+        },
+        .ruby_wasm_runtime = .{
+            .path = "deps/ruby_wasm_runtime",
+            .lazy = true,
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "deps",
+        "src",
+    },
+}

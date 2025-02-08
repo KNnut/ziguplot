@@ -1,0 +1,95 @@
+name: Build
+on: push
+jobs:
+  build:
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+        platform: [linux-musl, windows-msvc, macos, freebsd]
+        include:
+          - arch: x86
+            platform: windows-msvc
+    runs-on: macos-latest
+    env:
+      VCLTL_VERSION: 5.2.1-Beta4
+      VCLTL_TARGET_VERSION: 10.0.19041.0
+      FREEBSD_VERSION: 15
+      XCODE_VERSION: 16.2
+      MACOS_SDK_VERSION: 15.2
+      XWIN_DIR: ${{ runner.temp }}/xwin
+      TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Setup zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: master
+
+      - name: Setup VC-LTL
+        if: ${{ matrix.platform == 'windows-msvc' }}
+        run: |
+          curl -LO --output-dir ${{ runner.temp }} https://github.com/Chuyu-Team/VC-LTL5/releases/download/v${VCLTL_VERSION}/VC-LTL-Binary.7z
+          mkdir ${{ runner.temp }}/VC-LTL
+          tar -xC ${{ runner.temp }}/VC-LTL -f ${{ runner.temp }}/VC-LTL-Binary.7z TargetPlatform
+
+      - name: Setup xwin
+        if: ${{ matrix.platform == 'windows-msvc' }}
+        run: |
+          brew update
+          brew install xwin
+          xwin --accept-license --arch ${{ matrix.arch }} --variant desktop --channel release splat --preserve-ms-arch-notation --output ${XWIN_DIR}
+
+      - name: Setup FreeBSD sysroot
+        if: ${{ matrix.platform == 'freebsd' }}
+        run: |
+          FREEBSD_ARCH=$(echo -n ${{ matrix.arch }} | sed 's/^x86_/amd/')
+          DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg')
+          cd ${{ runner.temp }}
+          curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
+          tar --strip-components=2 xf freebsd-sysroot.pkg
+
+      - name: Build
+        run: |
+          zig_args=(
+            -Doptimize=ReleaseFast
+            -Dtarget=${TARGET_TRIPLE}
+          )
+          if [[ ${{ matrix.platform }} = windows-msvc ]]; then
+            zig_args+=(
+              -Dvc-ltl-dir=${{ runner.temp }}/VC-LTL/TargetPlatform/${VCLTL_TARGET_VERSION}
+              -Dxwin-dir=${XWIN_DIR}
+            )
+          elif [[ ${{ matrix.platform }} = macos ]]; then
+            zig_args+=(
+              --sysroot "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
+              -Dterms=aquaterm
+            )
+          elif [[ ${{ matrix.platform }} = freebsd ]]; then
+            FREEBSD_ARCH=$(echo -n ${{ matrix.arch }} | sed 's/^x86_/amd/')
+            zig_args+=(
+              --sysroot ${{ runner.temp }}/freebsd-sysroot/${FREEBSD_ARCH}
+            )
+          fi
+          zig build "${zig_args[@]}"
+
+      - name: Pack
+        run: |
+          mkdir dist
+          cp zig-out/bin/gnuplot dist
+          cp LICENSE dist
+          cd dist
+          curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
+          if [[ ${{ matrix.platform }} = windows-msvc ]]; then
+            bsdtar --format zip cf gnuplot-${TARGET_TRIPLE}.zip *
+          else
+            XZ_OPT=-9 tar cJf gnuplot-${TARGET_TRIPLE}.tar.xz *
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARGET_TRIPLE }}
+          path: dist/gnuplot-${TARGET_TRIPLE}.*
+          if-no-files-found: error
