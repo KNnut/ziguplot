@@ -39,7 +39,7 @@ jobs:
         run: |
           brew update
           brew install xwin
-          xwin --accept-license --arch ${{ matrix.arch }} --variant desktop --channel release splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
+          xwin --accept-license --arch ${{ matrix.arch }} --variant desktop --channel release --sdk-version 10.0.22621 splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
 
       - name: Setup FreeBSD sysroot
         if: ${{ matrix.platform == 'freebsd' }}
@@ -82,7 +82,7 @@ jobs:
           curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
           if [[ ${{ matrix.platform }} = windows-msvc ]]; then
             cp ../zig-out/bin/gnuplot.exe .
-            bsdtar --format zip cf ../gnuplot-${TARGET_TRIPLE}.zip *
+            bsdtar -a -cf ../gnuplot-${TARGET_TRIPLE}.zip *
           else
             cp ../zig-out/bin/gnuplot .
             XZ_OPT=-9 bsdtar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
