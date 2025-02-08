@@ -31,7 +31,7 @@ jobs:
         run: |
           curl -LO --output-dir ${RUNNER_TEMP} https://github.com/Chuyu-Team/VC-LTL5/releases/download/v${VCLTL_VERSION}/VC-LTL-Binary.7z
           mkdir ${RUNNER_TEMP}/VC-LTL
-          tar -xC ${RUNNER_TEMP}/VC-LTL -f ${RUNNER_TEMP}/VC-LTL-Binary.7z TargetPlatform
+          bsdtar -xC ${RUNNER_TEMP}/VC-LTL -f ${RUNNER_TEMP}/VC-LTL-Binary.7z TargetPlatform
 
       - name: Setup xwin
         if: ${{ matrix.platform == 'windows-msvc' }}
@@ -47,7 +47,7 @@ jobs:
           DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg')
           cd ${RUNNER_TEMP}
           curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
-          tar xf freebsd-sysroot.pkg --strip-components=2
+          bsdtar xf freebsd-sysroot.pkg --strip-components=2
 
       - name: Build
         run: |
@@ -83,7 +83,7 @@ jobs:
           if [[ ${{ matrix.platform }} = windows-msvc ]]; then
             bsdtar --format zip cf ../gnuplot-${TARGET_TRIPLE}.zip *
           else
-            XZ_OPT=-9 tar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
+            XZ_OPT=-9 bsdtar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
           fi
 
       - name: Upload artifacts
