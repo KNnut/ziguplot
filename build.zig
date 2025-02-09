@@ -284,17 +284,17 @@ pub fn build(b: *std.Build) !void {
         defer b.allocator.free(bytes);
 
         var array_list = std.ArrayList(u8).init(b.allocator);
-        // `TERM_IS_POSTSCRIPT`
-        try array_list.append(4);
+        try array_list.appendSlice(&.{
+            // `TERM_IS_POSTSCRIPT` is used by `lua.trm`, `post.trm` and `pslatex.trm`
+            4,
+            // `TERM_REUSES_BOXTEXT` is used by `cairo.trm` and `pslatex.trm`
+            18,
+            // `TERM_COLORBOX_IMAGE` is used by `cairo.trm` and `qt.trm`
+            19,
+        });
         if (!enable_latex)
-            try array_list.appendSlice(&.{
-                // `TERM_IS_LATEX`
-                14,
-                // `TERM_REUSES_BOXTEXT`
-                18,
-                // `TERM_COLORBOX_IMAGE`
-                19,
-            });
+            // `TERM_IS_LATEX`
+            try array_list.append(14);
 
         var size = stat.size;
         for (array_list.items) |num| {
