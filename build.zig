@@ -481,9 +481,8 @@ pub fn build(b: *std.Build) !void {
     if (target.result.os.tag == .windows) {
         // Windows
         const win_srcs = .{
-            "screenbuf.c", "wd2d.cpp",      "wgdiplus.cpp", "wgnuplib.c",
-            "wgraph.c",    "winmain.c",     "wmenu.c",      "wpause.c",
-            "wprinter.c",  "wredirect.cpp", "wtext.c",
+            "wd2d.cpp",  "wgdiplus.cpp", "wgnuplib.c", "wgraph.c",
+            "winmain.c", "wpause.c",     "wprinter.c",
         };
         exe.addCSourceFiles(.{
             .root = upstream.path("src/win"),
@@ -519,6 +518,32 @@ pub fn build(b: *std.Build) !void {
             // Setup MinGW
             exe.mingw_unicode_entry_point = true;
             exe.linkLibCpp();
+        }
+        {
+            // Add the rc file
+            const wf = b.addWriteFiles();
+            const rc = wf.add("gnuplot.rc",
+                \\#include <windows.h>
+                \\GRPICON ICON "grpicon.ico"
+                \\CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "gnuplot.exe.manifest"
+            );
+            _ = wf.add("gnuplot.exe.manifest",
+                \\<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                \\<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
+                \\<asmv3:application>
+                \\<asmv3:windowsSettings>
+                \\<dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+                \\<dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+                \\</asmv3:windowsSettings>
+                \\</asmv3:application>
+                \\</assembly>
+            );
+            exe.addWin32ResourceFile(.{
+                .file = rc,
+                .include_paths = &.{
+                    upstream.path("src/win"),
+                },
+            });
         }
     } else {
         // Non-Windows
