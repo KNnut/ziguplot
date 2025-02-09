@@ -24,6 +24,12 @@ pub fn build(b: *std.Build) !void {
         "The directory output by xwin splat",
     );
 
+    const mimalloc: bool = b.option(
+        bool,
+        "mimalloc",
+        "Enable mimalloc",
+    ) orelse false;
+
     const lib = b.addLibrary(.{
         .linkage = .static,
         .name = "gnuplot",
@@ -84,6 +90,9 @@ pub fn build(b: *std.Build) !void {
             // See https://learn.microsoft.com/cpp/c-runtime-library/complex-math-support
             try array_list.appendSlice("#undef HAVE_COMPLEX_H\n");
         }
+
+        if (mimalloc)
+            try array_list.appendSlice("#include \"mimalloc-override.h\"\n");
 
         const wf = b.addWriteFile("config.h", array_list.items);
         lib.addIncludePath(wf.getDirectory());
@@ -171,10 +180,8 @@ pub fn build(b: *std.Build) !void {
 
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target, .optimize = optimize })) |ruby_wasm_runtime| {
-            const artifact = ruby_wasm_runtime.artifact("ruby_wasm_runtime");
-            lib.linkLibrary(artifact);
-        }
+        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target, .optimize = optimize })) |ruby_wasm_runtime|
+            lib.linkLibrary(ruby_wasm_runtime.artifact("ruby_wasm_runtime"));
     }
 
     {
@@ -222,7 +229,7 @@ pub fn build(b: *std.Build) !void {
 
         if (target.result.os.tag == .wasi) {
             extra_config.addValues(.{
-                // Only disable bitmap support since the block terminal
+                // Disable bitmap support only without the block terminal
                 .NO_BITMAP_SUPPORT = true,
             });
         } else {
@@ -364,8 +371,12 @@ pub fn build(b: *std.Build) !void {
     translate_c.addIncludePath(upstream.path("src"));
     translate_c.addIncludePath(upstream.path("term"));
     if (target.result.os.tag == .wasi) {
-        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target, .optimize = optimize })) |ruby_wasm_runtime|
+        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target })) |ruby_wasm_runtime|
             translate_c.addIncludePath(ruby_wasm_runtime.path("src"));
+    }
+    if (mimalloc) {
+        if (b.lazyDependency("mimalloc", .{ .override = false })) |mimalloc_dep|
+            translate_c.addIncludePath(mimalloc_dep.builder.dependency("mimalloc", .{}).path("include"));
     }
 
     const c = translate_c.addModule("c");
@@ -379,6 +390,18 @@ pub fn build(b: *std.Build) !void {
             .link_libc = true,
         }),
     });
+
+    if (mimalloc) {
+        if (b.lazyDependency("mimalloc", .{
+            .target = target,
+            .optimize = optimize,
+            .override = false,
+        })) |mimalloc_dep| {
+            inline for (.{ lib, exe }) |compile|
+                compile.linkLibrary(mimalloc_dep.artifact("mimalloc"));
+        }
+    }
+
     exe.linkLibrary(lib);
     exe.root_module.addCMacro("HAVE_CONFIG_H", "");
     exe.addConfigHeader(extra_config);
@@ -452,9 +475,8 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
-    if (target.result.os.tag == .wasi) {
+    if (target.result.os.tag == .wasi)
         exe.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-    }
 
     if (target.result.os.tag == .windows) {
         // Windows
@@ -508,8 +530,21 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(exe);
 
     // Setup cross-compilation
+    const compiles = blk: {
+        var array_list = std.ArrayList(*std.Build.Step.Compile).init(b.allocator);
+        try array_list.appendSlice(&.{ lib, exe });
+        if (mimalloc) {
+            if (b.lazyDependency("mimalloc", .{
+                .target = target,
+                .optimize = optimize,
+                .override = false,
+            })) |mimalloc_dep| try array_list.append(mimalloc_dep.artifact("mimalloc"));
+        }
+        break :blk try array_list.toOwnedSlice();
+    };
+
     if (target.result.abi == .msvc) {
-        inline for (.{ lib, exe }) |compile| {
+        for (compiles) |compile| {
             inline for (.{
                 "_CRT_SECURE_NO_WARNINGS",
                 "_CRT_NONSTDC_NO_WARNINGS",
@@ -529,14 +564,13 @@ pub fn build(b: *std.Build) !void {
             else => unreachable,
         };
 
-        if (vc_ltl_dir) |vc_ltl| {
+        if (vc_ltl_dir) |vc_ltl|
             exe.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ vc_ltl, "lib", vc_ltl_arch }) });
-        }
 
         if (xwin_dir) |xwin| {
             const xwin_include_dir = b.pathJoin(&.{ xwin, "sdk", "include", "ucrt" });
             const xwin_sys_include_dir = b.pathJoin(&.{ xwin, "crt", "include" });
-            inline for (.{ lib, exe }) |compile| {
+            for (compiles) |compile| {
                 inline for (.{
                     xwin_sys_include_dir,
                     xwin_include_dir,
@@ -575,7 +609,7 @@ pub fn build(b: *std.Build) !void {
                     msvc_lib_dir,
                     kernel32_lib_dir,
                 }));
-                inline for (.{ lib, exe }) |compile|
+                for (compiles) |compile|
                     compile.setLibCFile(libc_txt);
             }
         }
@@ -599,7 +633,7 @@ pub fn build(b: *std.Build) !void {
             sys_include_dir,
             crt_dir,
         }));
-        inline for (.{ lib, exe }) |compile|
+        for (compiles) |compile|
             compile.setLibCFile(libc_txt);
 
         if (enable_aquaterm) {

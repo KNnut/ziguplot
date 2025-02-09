@@ -56,7 +56,11 @@ jobs:
             -Doptimize=ReleaseFast
             -Dtarget=${TARGET_TRIPLE}
           )
-          if [[ ${{ matrix.platform }} = windows-msvc ]]; then
+          if [[ ${{ matrix.platform }} = linux-musl ]]; then
+            zig_args+=(
+              -Dmimalloc
+            )
+          elif [[ ${{ matrix.platform }} = windows-msvc ]]; then
             zig_args+=(
               -Dvc-ltl-dir=${RUNNER_TEMP}/VC-LTL/TargetPlatform/${VCLTL_TARGET_VERSION}
               -Dxwin-dir=${RUNNER_TEMP}/xwin
