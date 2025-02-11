@@ -513,10 +513,9 @@ pub fn build(b: *std.Build) !void {
         });
 
         inline for (.{
-            "comctl32", "comdlg32", "ole32",    "msimg32",
-            "htmlhelp", "shlwapi",  "winspool", "gdi32",
-            "gdiplus",  "d2d1",     "d3d11",    "dwrite",
-            "prntvpt",
+            "comctl32", "comdlg32", "ole32",  "msimg32",
+            "shlwapi",  "winspool", "gdi32",  "gdiplus",
+            "d2d1",     "d3d11",    "dwrite", "prntvpt",
         }) |dll| exe.linkSystemLibrary(dll);
 
         exe.subsystem = .Console;
@@ -534,7 +533,7 @@ pub fn build(b: *std.Build) !void {
         if (target.result.abi == .msvc) {
             // Setup MSVC
             exe.root_module.addCMacro("__MSC__", "");
-            inline for (.{ "user32", "advapi32", "shell32" }) |dll|
+            inline for (.{ "user32", "shell32" }) |dll|
                 exe.linkSystemLibrary(dll);
         } else {
             // Setup MinGW
