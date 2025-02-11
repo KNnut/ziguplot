@@ -185,6 +185,60 @@ pub fn build(b: *std.Build) !void {
     }
 
     {
+        // Custom terminals
+        const wf = b.addWriteFiles();
+
+        {
+            var array_list = std.ArrayList(u8).init(b.allocator);
+
+            // Unset default drivers
+            inline for (.{ "POSTSCRIPT", "PSLATEX" }) |driver|
+                try array_list.appendSlice("#undef " ++ driver ++ "_DRIVER\n");
+
+            if (target.result.os.tag == .wasi) {
+                extra_config.addValues(.{
+                    // Disable bitmap support only without the block terminal
+                    .NO_BITMAP_SUPPORT = true,
+                });
+            } else {
+                try array_list.appendSlice(
+                    \\#include_next "dumb.trm"
+                    \\
+                );
+
+                inline for (.{ "block.trm", "emf.trm", "pict2e.trm" }) |driver|
+                    try array_list.appendSlice("#include \"" ++ driver ++ "\"\n");
+            }
+
+            // Common terminals
+            try array_list.appendSlice(
+                \\#include "svg.trm"
+                \\
+            );
+
+            var term_list = std.mem.tokenizeScalar(u8, terms, ',');
+            while (term_list.next()) |term| {
+                if (std.mem.eql(u8, term, "aquaterm")) {
+                    if (target.result.os.tag != .macos) {
+                        std.debug.print("The AquaTerm terminal requires macOS but the target OS is {s}.\n", .{@tagName(target.result.os.tag)});
+                        return error.InvalidOSForAquaTerm;
+                    }
+                    enable_aquaterm = true;
+                    extra_config.addValues(.{
+                        .HAVE_FRAMEWORK_AQUATERM = true,
+                    });
+                    lib.linkFramework("Foundation");
+                    lib.linkFramework("AquaTerm");
+                } else if (std.mem.eql(u8, term, "cetz")) {
+                    enable_latex = true;
+                } else continue;
+                try array_list.appendSlice("#include \"");
+                try array_list.appendSlice(term);
+                try array_list.appendSlice(".trm\"\n");
+            }
+            _ = wf.add("dumb.trm", array_list.items);
+        }
+
         {
             // Minify `svg.trm`
             const upstream_dir = upstream.builder.build_root.handle;
@@ -193,7 +247,6 @@ pub fn build(b: *std.Build) !void {
 
             const stat = try file.stat();
             const bytes = try file.readToEndAlloc(b.allocator, stat.size);
-            defer b.allocator.free(bytes);
 
             var size = stat.size;
             inline for (.{
@@ -215,61 +268,9 @@ pub fn build(b: *std.Build) !void {
                 const times = std.mem.replace(u8, bytes[0..size], str, "", bytes);
                 size -= str.len * times;
             }
-
-            const wf = b.addWriteFile("svg.trm", bytes[0..size]);
-            lib.addIncludePath(wf.getDirectory());
+            _ = wf.add("svg.trm", bytes[0..size]);
         }
 
-        // Custom terminals
-        var array_list = std.ArrayList(u8).init(b.allocator);
-
-        // Unset default drivers
-        inline for (.{ "POSTSCRIPT", "PSLATEX" }) |driver|
-            try array_list.appendSlice("#undef " ++ driver ++ "_DRIVER\n");
-
-        if (target.result.os.tag == .wasi) {
-            extra_config.addValues(.{
-                // Disable bitmap support only without the block terminal
-                .NO_BITMAP_SUPPORT = true,
-            });
-        } else {
-            try array_list.appendSlice(
-                \\#include_next "dumb.trm"
-                \\
-            );
-
-            inline for (.{ "block.trm", "emf.trm", "pict2e.trm" }) |driver|
-                try array_list.appendSlice("#include \"" ++ driver ++ "\"\n");
-        }
-
-        // Common terminals
-        try array_list.appendSlice(
-            \\#include "svg.trm"
-            \\
-        );
-
-        var term_list = std.mem.tokenizeScalar(u8, terms, ',');
-        while (term_list.next()) |term| {
-            if (std.mem.eql(u8, term, "aquaterm")) {
-                if (target.result.os.tag != .macos) {
-                    std.debug.print("The AquaTerm terminal requires macOS but the target OS is {s}.\n", .{@tagName(target.result.os.tag)});
-                    return error.InvalidOSForAquaTerm;
-                }
-                enable_aquaterm = true;
-                extra_config.addValues(.{
-                    .HAVE_FRAMEWORK_AQUATERM = true,
-                });
-                lib.linkFramework("Foundation");
-                lib.linkFramework("AquaTerm");
-            } else if (std.mem.eql(u8, term, "cetz")) {
-                enable_latex = true;
-            } else continue;
-            try array_list.appendSlice("#include \"");
-            try array_list.appendSlice(term);
-            try array_list.appendSlice(".trm\"\n");
-        }
-
-        const wf = b.addWriteFile("dumb.trm", array_list.items);
         lib.addIncludePath(wf.getDirectory());
     }
 
@@ -281,7 +282,6 @@ pub fn build(b: *std.Build) !void {
 
         const stat = try file.stat();
         const bytes = try file.readToEndAlloc(b.allocator, stat.size);
-        defer b.allocator.free(bytes);
 
         var array_list = std.ArrayList(u8).init(b.allocator);
         try array_list.appendSlice(&.{
@@ -331,18 +331,37 @@ pub fn build(b: *std.Build) !void {
             "vplot.c",    "watch.c",
         };
 
-        {
-            // Avoid depending on original headers
-            const wf = b.addWriteFiles();
-            inline for (srcs) |source|
+        // Avoid depending on original headers
+        const wf = b.addWriteFiles();
+        inline for (srcs) |source| {
+            if (!comptime std.mem.eql(u8, source, "command.c"))
                 _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
-            lib.addCSourceFiles(.{
-                .language = if (enable_aquaterm) .objective_c else .c,
-                .root = wf.getDirectory(),
-                .files = &srcs,
-                .flags = &.{"-fno-sanitize=undefined"},
-            });
         }
+
+        {
+            // Modify `command.c` to disable help in Windows as well
+            const upstream_dir = upstream.builder.build_root.handle;
+            const file = try upstream_dir.openFile("src/command.c", .{});
+            defer file.close();
+
+            const stat = try file.stat();
+            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+
+            var size = stat.size;
+            const pair = .{ "#ifdef NO_GIH\n#ifdef _WIN32", "#ifdef NO_GIH\n#if 0" };
+            const diff = pair[0].len - pair[1].len;
+            const times = std.mem.replace(u8, bytes, pair[0], pair[1], bytes);
+            size -= diff * times;
+
+            _ = wf.add("command.c", bytes[0..size]);
+        }
+
+        lib.addCSourceFiles(.{
+            .language = if (enable_aquaterm) .objective_c else .c,
+            .root = wf.getDirectory(),
+            .files = &srcs,
+            .flags = &.{"-fno-sanitize=undefined"},
+        });
     }
 
     // b.installArtifact(lib);
@@ -409,6 +428,10 @@ pub fn build(b: *std.Build) !void {
     exe.addIncludePath(upstream.path("src"));
     exe.addIncludePath(upstream.path("term"));
 
+    const use_llvm = b.option(bool, "use-llvm", "Use Zig's LLVM backend");
+    exe.use_llvm = use_llvm;
+    exe.use_lld = use_llvm;
+
     if (optimize != .Debug) {
         exe.want_lto = target.result.ofmt != .macho;
         exe.root_module.strip = true;
@@ -438,28 +461,27 @@ pub fn build(b: *std.Build) !void {
 
             const stat = try file.stat();
             const bytes = try file.readToEndAlloc(b.allocator, stat.size);
-            defer b.allocator.free(bytes);
 
-            {
-                inline for (.{
-                    .{
-                        \\fprintf(stderr, "`%s:%d oops.'\n", __FILE__, __LINE__)
-                        ,
-                        \\FPRINTF((stderr,"`%s:%d oops.'\n",__FILE__,__LINE__))
-                    },
-                    .{
-                        \\fprintf(stderr, "%s:%d unrecognized event type %d\n", __FILE__, __LINE__, ge->type)
-                        ,
-                        \\FPRINTF((stderr,"%s:%d unrecognized event type %d\n",__FILE__,__LINE__,ge->type))
-                    },
-                }) |pair| {
-                    const diff = pair[0].len - pair[1].len;
-                    _ = std.mem.replace(u8, bytes, pair[0], pair[1] ++ [_]u8{' '} ** diff, bytes);
-                }
+            var size = stat.size;
+            inline for (.{
+                .{
+                    \\fprintf(stderr, "`%s:%d oops.'\n", __FILE__, __LINE__)
+                    ,
+                    \\FPRINTF((stderr,"`%s:%d oops.'\n",__FILE__,__LINE__))
+                },
+                .{
+                    \\fprintf(stderr, "%s:%d unrecognized event type %d\n", __FILE__, __LINE__, ge->type)
+                    ,
+                    \\FPRINTF((stderr,"%s:%d unrecognized event type %d\n",__FILE__,__LINE__,ge->type))
+                },
+            }) |pair| {
+                const diff = pair[0].len - pair[1].len;
+                const times = std.mem.replace(u8, bytes, pair[0], pair[1], bytes);
+                size -= diff * times;
             }
 
             const wf = b.addWriteFiles();
-            const mouse_c = wf.add("mouse.c", bytes);
+            const mouse_c = wf.add("mouse.c", bytes[0..size]);
             exe.addCSourceFile(.{
                 .file = mouse_c,
                 .flags = &.{"-fno-sanitize=undefined"},

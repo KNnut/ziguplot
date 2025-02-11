@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) !void {
         "-fno-builtin-malloc",
     });
 
-    if (target.result.abi == .musl)
+    if (target.result.isMusl())
         try cflags.append("-ftls-model=local-dynamic")
     else
         try cflags.append("-ftls-model=initial-exec");
@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug)
         compile.root_module.addCMacro("NDEBUG", "");
 
-    if (target.result.abi == .musl)
+    if (target.result.isMusl())
         compile.root_module.addCMacro("MI_LIBC_MUSL", "");
 
     if (override) {
