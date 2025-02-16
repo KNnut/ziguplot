@@ -1,8 +1,6 @@
 #include <stdio.h>
 
-void (*signal(int, void *(int)))(int) {
-    return 0;
-}
+void (*signal(int, void *(int)))(int) {}
 
 int system(const char *) {
     return 0;
