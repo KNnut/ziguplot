@@ -10,6 +10,8 @@ jobs:
         include:
           - arch: x86
             platform: windows-msvc
+          - arch: wasm32
+            platform: wasi
     runs-on: macos-latest
     env:
       VCLTL_VERSION: 5.2.1-Beta4
@@ -75,6 +77,10 @@ jobs:
             zig_args+=(
               --sysroot ${RUNNER_TEMP}/freebsd-sysroot/${FREEBSD_ARCH}
             )
+          elif [[ ${{ matrix.platform }} = wasi ]]; then
+            zig_args+=(
+              -Dmimalloc
+            )
           fi
           zig build "${zig_args[@]}"
 
@@ -84,11 +90,10 @@ jobs:
           cp LICENSE dist
           cd dist
           curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
+          cp ../zig-out/bin/gnuplot{,.exe,.wasm} . || :
           if [[ ${{ matrix.platform }} = windows-msvc ]]; then
-            cp ../zig-out/bin/gnuplot.exe .
             bsdtar -a -cf ../gnuplot-${TARGET_TRIPLE}.zip *
           else
-            cp ../zig-out/bin/gnuplot .
             XZ_OPT=-9 bsdtar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
           fi
 
