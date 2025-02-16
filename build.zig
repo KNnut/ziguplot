@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) !void {
 
     const lib = b.addLibrary(.{
         .linkage = .static,
-        .name = "gnuplot",
+        .name = "libgnuplot",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -46,13 +46,6 @@ pub fn build(b: *std.Build) !void {
         if (target.result.os.tag != .windows)
             lib.root_module.unwind_tables = .none;
     }
-
-    const module = b.addModule("ziguplot", .{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    module.linkLibrary(lib);
 
     const upstream = b.dependency("gnuplot", .{ .target = target, .optimize = optimize });
 
@@ -99,89 +92,19 @@ pub fn build(b: *std.Build) !void {
         break :blk wf;
     };
 
-    const extra_config = b.addConfigHeader(
-        .{ .include_path = "extra_config.h" },
-        .{
-            .STDC_HEADERS = true,
-            .HAVE_ATEXIT = true,
-            .HAVE_VFPRINTF = true,
-            .HAVE_STRERROR = true,
-            .HAVE_STRCSPN = true,
-            .HAVE_STRDUP = true,
-            .HAVE_STRICMP = true,
-            .HAVE_STRNICMP = true,
-            .HAVE_STRNLEN = true,
-            .HAVE_STRCHR = true,
-            .HAVE_STRSTR = true,
-            .HAVE_GETCWD = true,
-            .HAVE_USLEEP = true,
-            .HAVE_SLEEP = true,
-            .HAVE_CSQRT = true,
-            .HAVE_CABS = true,
-            .HAVE_CLOG = true,
-            .HAVE_CEXP = true,
-            .HAVE_LGAMMA = true,
-            .HAVE_TGAMMA = true,
-            .HAVE_ERF = true,
-            .HAVE_ERFC = true,
-            .HAVE_DECL_SIGNGAM = true,
-            .HAVE_MEMCPY = true,
-            .HAVE_MEMMOVE = true,
-            .HAVE_MEMSET = true,
-            .HAVE_TIME_T_IN_TIME_H = true,
-
-            .USE_POLAR_GRID = true,
-            .USE_STATS = true,
-            .USE_WATCHPOINTS = true,
-            .USE_FUNCTIONBLOCKS = true,
-            .WITH_CHI_SHAPES = true,
-            .WITH_EXTRA_COORDINATE = true,
-
-            .NO_GIH = true,
-            .HELPFILE = "",
-            .SHORT_TERMLIST = true,
-            .DEFAULTTERM = switch (target.result.os.tag) {
-                .wasi => "svg",
-                .windows => "windows",
-                else => "dumb",
-            },
-        },
-    );
-
-    if (target.result.os.tag != .wasi)
-        extra_config.addValues(.{
-            .PIPES = true,
-            .USE_MOUSE = true,
-            .READLINE = true,
-            .GNUPLOT_HISTORY = true,
-        });
-
-    if (target.result.os.tag != .windows) {
-        extra_config.addValues(.{
-            .HAVE_STPCPY = true,
-            .HAVE_STRNDUP = true,
-            .HAVE_STRLCPY = true,
-        });
-    }
-
-    if (target.result.abi == .msvc) {
-        lib.root_module.addCMacro("__MSC__", "");
-        extra_config.addValues(.{
-            .USE_FAKEPIPES = true,
-        });
-    } else {
-        extra_config.addValues(.{
-            .HAVE_STRCASECMP = true,
-            .HAVE_STRNCASECMP = true,
-        });
-    }
-
+    const extra_config = addExtraConfigHeader(b, target.result, "extra_config.h");
     lib.addConfigHeader(extra_config);
+
+    if (target.result.abi == .msvc)
+        lib.root_module.addCMacro("__MSC__", "");
 
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target, .optimize = optimize })) |ruby_wasm_runtime|
-            lib.linkLibrary(ruby_wasm_runtime.artifact("ruby_wasm_runtime"));
+        lib.root_module.addCMacro("__wasm_exception_handling__", "");
+        lib.addCSourceFile(.{
+            .file = b.path("src/wasm_stub.c"),
+            .flags = &.{"-std=gnu23"},
+        });
     }
 
     {
@@ -317,24 +240,25 @@ pub fn build(b: *std.Build) !void {
             "alloc.c",    "amos_airy.c",  "axis.c",      "bitmap.c",
             "boundary.c", "breaders.c",   "color.c",     "command.c",
             "contour.c",  "complexfun.c", "datablock.c", "datafile.c",
-            "dynarray.c", "encoding.c",   "eval.c",      "external.c",
-            "filters.c",  "fit.c",        "gadgets.c",   "getcolor.c",
-            "gplocale.c", "graph3d.c",    "graphics.c",  "help.c",
-            "hidden3d.c", "history.c",    "internal.c",  "interpol.c",
-            "jitter.c",   "libcerf.c",    "loadpath.c",  "marks.c",
-            "matrix.c",   "misc.c",       "multiplot.c", "parse.c",
-            "plot2d.c",   "plot3d.c",     "pm3d.c",      "save.c",
-            "scanner.c",  "set.c",        "show.c",      "specfun.c",
-            "standard.c", "stats.c",      "stdfn.c",     "tables.c",
-            "tabulate.c", "term.c",       "time.c",      "unset.c",
-            "util.c",     "util3d.c",     "version.c",   "voxelgrid.c",
-            "vplot.c",    "watch.c",
+            "dynarray.c", "encoding.c",   "eval.c",      "filters.c",
+            "fit.c",      "gadgets.c",    "getcolor.c",  "gplocale.c",
+            "graph3d.c",  "graphics.c",   "help.c",      "hidden3d.c",
+            "history.c",  "internal.c",   "interpol.c",  "jitter.c",
+            "libcerf.c",  "loadpath.c",   "marks.c",     "matrix.c",
+            "misc.c",     "multiplot.c",  "parse.c",     "plot2d.c",
+            "plot3d.c",   "pm3d.c",       "save.c",      "scanner.c",
+            "set.c",      "show.c",       "specfun.c",   "standard.c",
+            "stats.c",    "stdfn.c",      "tables.c",    "tabulate.c",
+            "term.c",     "time.c",       "unset.c",     "util.c",
+            "util3d.c",   "version.c",    "voxelgrid.c", "vplot.c",
+            "watch.c",
         };
 
         // Avoid depending on original headers
         const wf = b.addWriteFiles();
         inline for (srcs) |source| {
-            if (!comptime std.mem.eql(u8, source, "command.c"))
+            if (!std.mem.eql(u8, source, "command.c") and
+                !std.mem.eql(u8, source, "save.c"))
                 _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
         }
 
@@ -356,6 +280,24 @@ pub fn build(b: *std.Build) !void {
             _ = wf.add("command.c", bytes[0..size]);
         }
 
+        {
+            // Modify `save.c` to disable save changes in Wasm
+            const upstream_dir = upstream.builder.build_root.handle;
+            const file = try upstream_dir.openFile("src/save.c", .{});
+            defer file.close();
+
+            const stat = try file.stat();
+            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+
+            const pair = .{
+                "!defined(MSDOS)",
+                "!defined(MSDOS) && !defined(__wasm__)",
+            };
+            const save_c = try std.mem.replaceOwned(u8, b.allocator, bytes, pair[0], pair[1]);
+
+            _ = wf.add("save.c", save_c);
+        }
+
         lib.addCSourceFiles(.{
             .language = if (enable_aquaterm) .objective_c else .c,
             .root = wf.getDirectory(),
@@ -364,42 +306,7 @@ pub fn build(b: *std.Build) !void {
         });
     }
 
-    // b.installArtifact(lib);
-
-    const gnuplot_h_wf = b.addWriteFiles();
-    const gnuplot_h = gnuplot_h_wf.add("gnuplot.h",
-        \\#include "setshow.h"
-        \\#include "fit.h"
-        \\#include "gadgets.h"
-        \\#include "voxelgrid.h"
-        \\#include "term_api.h"
-        \\#include "misc.h"
-        \\#include "command.h"
-    );
-
-    const translate_c = b.addTranslateC(.{
-        .root_source_file = gnuplot_h,
-        .target = target,
-        .optimize = optimize,
-    });
-    translate_c.defineCMacro("_GNU_SOURCE", null);
-    translate_c.defineCMacro("HAVE_CONFIG_H", null);
-
-    translate_c.addConfigHeader(extra_config);
-    translate_c.addIncludePath(config_h_wf.getDirectory());
-    translate_c.addIncludePath(upstream.path("src"));
-    translate_c.addIncludePath(upstream.path("term"));
-    if (target.result.os.tag == .wasi) {
-        if (b.lazyDependency("ruby_wasm_runtime", .{ .target = target })) |ruby_wasm_runtime|
-            translate_c.addIncludePath(ruby_wasm_runtime.path("src"));
-    }
-    if (mimalloc) {
-        if (b.lazyDependency("mimalloc", .{ .override = false })) |mimalloc_dep|
-            translate_c.addIncludePath(mimalloc_dep.builder.dependency("mimalloc", .{}).path("include"));
-    }
-
-    const c = translate_c.addModule("c");
-    module.addImport("c", c);
+    b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
         .name = "gnuplot",
@@ -446,12 +353,14 @@ pub fn build(b: *std.Build) !void {
     }
 
     {
-        const srcs = .{ "gpexecute.c", "plot.c", "readline.c", "xdg.c" };
-        exe.addCSourceFiles(.{
-            .root = upstream.path("src"),
-            .files = &srcs,
-            .flags = &.{"-fno-sanitize=undefined"},
-        });
+        const srcs = .{ "gpexecute.c", "mouse.c", "plot.c", "readline.c", "xdg.c" };
+
+        const wf = b.addWriteFiles();
+        inline for (srcs) |source| {
+            if (!std.mem.eql(u8, source, "mouse.c") and
+                !std.mem.eql(u8, source, "plot.c"))
+                _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
+        }
 
         {
             // Minify `mouse.c`
@@ -480,13 +389,31 @@ pub fn build(b: *std.Build) !void {
                 size -= diff * times;
             }
 
-            const wf = b.addWriteFiles();
-            const mouse_c = wf.add("mouse.c", bytes[0..size]);
-            exe.addCSourceFile(.{
-                .file = mouse_c,
-                .flags = &.{"-fno-sanitize=undefined"},
-            });
+            _ = wf.add("mouse.c", bytes[0..size]);
         }
+
+        {
+            // Modify `plot.c` to disable save changes in Wasm
+            const upstream_dir = upstream.builder.build_root.handle;
+            const file = try upstream_dir.openFile("src/plot.c", .{});
+            defer file.close();
+
+            const stat = try file.stat();
+            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+
+            const pair = .{
+                "!defined(MSDOS)",
+                "!defined(MSDOS) && !defined(__wasm__)",
+            };
+            const plot_c = try std.mem.replaceOwned(u8, b.allocator, bytes, pair[0], pair[1]);
+
+            _ = wf.add("plot.c", plot_c);
+        }
+        exe.addCSourceFiles(.{
+            .root = upstream.path("src"),
+            .files = &srcs,
+            .flags = &.{"-fno-sanitize=undefined"},
+        });
     }
 
     if (enable_aquaterm) {
@@ -497,8 +424,14 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
-    if (target.result.os.tag == .wasi)
+    if (target.result.os.tag == .wasi) {
         exe.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
+        exe.root_module.addCMacro("__wasm_exception_handling__", "");
+        exe.addCSourceFile(.{
+            .file = b.path("src/wasm_stub_sjlj.c"),
+            .flags = &.{"-std=c23"},
+        });
+    }
 
     if (target.result.os.tag == .windows) {
         // Windows
@@ -519,17 +452,6 @@ pub fn build(b: *std.Build) !void {
         }) |dll| exe.linkSystemLibrary(dll);
 
         exe.subsystem = .Console;
-        extra_config.addValues(.{
-            .UNICODE = true,
-            ._UNICODE = true,
-            .WIN_IPC = true,
-            .HAVE_GDIPLUS = true,
-            .HAVE_D2D = true,
-            .HAVE_D2D11 = true,
-            .HAVE_PRNTVPT = true,
-            .WGP_CONSOLE = true,
-            .USE_WINGDI = true,
-        });
         if (target.result.abi == .msvc) {
             // Setup MSVC
             exe.root_module.addCMacro("__MSC__", "");
@@ -566,13 +488,7 @@ pub fn build(b: *std.Build) !void {
                 },
             });
         }
-    } else {
-        // Non-Windows
-        extra_config.addValues(.{
-            .PIPE_IPC = true,
-        });
     }
-
     b.installArtifact(exe);
 
     // Setup cross-compilation
@@ -696,4 +612,101 @@ pub fn build(b: *std.Build) !void {
     }
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+}
+
+fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const u8) *std.Build.Step.ConfigHeader {
+    const extra_config = b.addConfigHeader(
+        .{ .include_path = include_path },
+        .{
+            .STDC_HEADERS = true,
+            .HAVE_ATEXIT = true,
+            .HAVE_VFPRINTF = true,
+            .HAVE_STRERROR = true,
+            .HAVE_STRCSPN = true,
+            .HAVE_STRDUP = true,
+            .HAVE_STRICMP = true,
+            .HAVE_STRNICMP = true,
+            .HAVE_STRNLEN = true,
+            .HAVE_STRCHR = true,
+            .HAVE_STRSTR = true,
+            .HAVE_GETCWD = true,
+            .HAVE_USLEEP = true,
+            .HAVE_SLEEP = true,
+            .HAVE_CSQRT = true,
+            .HAVE_CABS = true,
+            .HAVE_CLOG = true,
+            .HAVE_CEXP = true,
+            .HAVE_LGAMMA = true,
+            .HAVE_TGAMMA = true,
+            .HAVE_ERF = true,
+            .HAVE_ERFC = true,
+            .HAVE_DECL_SIGNGAM = true,
+            .HAVE_MEMCPY = true,
+            .HAVE_MEMMOVE = true,
+            .HAVE_MEMSET = true,
+            .HAVE_TIME_T_IN_TIME_H = true,
+
+            .USE_POLAR_GRID = true,
+            .USE_STATS = true,
+            .USE_WATCHPOINTS = true,
+            .USE_FUNCTIONBLOCKS = true,
+            .WITH_CHI_SHAPES = true,
+            .WITH_EXTRA_COORDINATE = true,
+
+            .NO_GIH = true,
+            .HELPFILE = "",
+            .SHORT_TERMLIST = true,
+            .DEFAULTTERM = switch (target.os.tag) {
+                .wasi => "svg",
+                .windows => "windows",
+                else => "dumb",
+            },
+        },
+    );
+
+    if (target.os.tag != .wasi)
+        extra_config.addValues(.{
+            .PIPES = true,
+            .USE_MOUSE = true,
+            .READLINE = true,
+            .GNUPLOT_HISTORY = true,
+        });
+
+    if (target.os.tag != .windows) {
+        extra_config.addValues(.{
+            .HAVE_STPCPY = true,
+            .HAVE_STRNDUP = true,
+            .HAVE_STRLCPY = true,
+        });
+    }
+
+    if (target.abi == .msvc)
+        extra_config.addValues(.{
+            .USE_FAKEPIPES = true,
+        })
+    else
+        extra_config.addValues(.{
+            .HAVE_STRCASECMP = true,
+            .HAVE_STRNCASECMP = true,
+        });
+
+    if (target.os.tag == .windows)
+        extra_config.addValues(.{
+            .UNICODE = true,
+            ._UNICODE = true,
+            .WIN_IPC = true,
+            .HAVE_GDIPLUS = true,
+            .HAVE_D2D = true,
+            .HAVE_D2D11 = true,
+            .HAVE_PRNTVPT = true,
+            .WGP_CONSOLE = true,
+            .USE_WINGDI = true,
+        })
+    else
+        // Non-Windows
+        extra_config.addValues(.{
+            .PIPE_IPC = true,
+        });
+
+    return extra_config;
 }

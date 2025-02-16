@@ -3,8 +3,8 @@
     .version = "0.0.1",
     .dependencies = .{
         .gnuplot = .{
-            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/6f43f41786f79395cd3d184eec4f78fc4fabb1a1.tar.gz",
-            .hash = "12201a66be50caf6a76d32ab51dc8d9c8d7148360eb27488bd3f87ef676606301115",
+            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/47144f8315e259d1194b3f7ba70f9e90b2180be7.tar.gz",
+            .hash = "1220700d9ea8be49032cb322063963e9cbb9b97e8ab35aded3649e45389b0ca83cdd",
         },
         .mimalloc = .{
             .path = "deps/mimalloc",
@@ -12,10 +12,6 @@
         },
         .aquaterm = .{
             .path = "deps/aquaterm",
-            .lazy = true,
-        },
-        .ruby_wasm_runtime = .{
-            .path = "deps/ruby_wasm_runtime",
             .lazy = true,
         },
     },

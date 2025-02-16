@@ -3,7 +3,7 @@
     .version = "2.1.9",
     .dependencies = .{
         .mimalloc = .{
-            .url = "https://github.com/microsoft/mimalloc/archive/refs/tags/v2.1.9.tar.gz",
+            .url = "https://github.com/microsoft/mimalloc/archive/v2.1.9.tar.gz",
             .hash = "1220c35385cfa260aee18361c735189cea84ddfd491314f580130069737f775c93c6",
         },
     },
