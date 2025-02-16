@@ -79,6 +79,7 @@ jobs:
             )
           elif [[ ${{ matrix.platform }} = wasi ]]; then
             zig_args+=(
+              -Dcpu="lime1+bulk_memory+reference_types+simd128"
               -Dmimalloc
             )
           fi
