@@ -90,7 +90,7 @@ jobs:
           cp LICENSE dist
           cd dist
           curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
-          cp ../zig-out/bin/gnuplot{,.exe,.wasm} . || :
+          cp ../zig-out/bin/gnuplot{,.exe,.wasm} . 2>/dev/null || :
           if [[ ${{ matrix.platform }} = windows-msvc ]]; then
             bsdtar -a -cf ../gnuplot-${TARGET_TRIPLE}.zip *
           else
