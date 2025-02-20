@@ -3,8 +3,8 @@
     .version = "0.0.1",
     .dependencies = .{
         .gnuplot = .{
-            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/47144f8315e259d1194b3f7ba70f9e90b2180be7.tar.gz",
-            .hash = "1220700d9ea8be49032cb322063963e9cbb9b97e8ab35aded3649e45389b0ca83cdd",
+            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/56959eae7e64dfbe0f3cd4a6fe2202dfe7f3630c.tar.gz",
+            .hash = "1220003bcdc48be973876f8dbf4ded8813f8cf47fc6043a2ad5f4a43f8e868ef2dfb",
         },
         .mimalloc = .{
             .path = "deps/mimalloc",
