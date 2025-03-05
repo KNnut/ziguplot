@@ -3,7 +3,7 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  lint:
+  fmt:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Check out repository code
@@ -16,4 +16,5 @@ jobs:
 
       - name: Check formatting
         run: |
+          shopt -s globstar
           zig fmt --check **/*.{zig,zon}
