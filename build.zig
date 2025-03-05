@@ -154,7 +154,7 @@ pub fn build(b: *std.Build) !void {
                     lib.linkFramework("AquaTerm");
                 } else if (std.mem.eql(u8, term, "cetz")) {
                     enable_latex = true;
-                } else continue;
+                } else if (!std.mem.eql(u8, term, "debug")) continue;
                 try array_list.appendSlice("#include \"");
                 try array_list.appendSlice(term);
                 try array_list.appendSlice(".trm\"\n");
