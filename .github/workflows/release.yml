@@ -1,0 +1,64 @@
+name: Release
+on:
+  schedule:
+    - cron: "0 0 * * *"
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        platform: [linux-musl, windows-msvc, macos, freebsd]
+        include:
+          - arch: x86
+            platform: windows-msvc
+          - arch: wasm32
+            platform: wasi
+    runs-on: macos-latest
+    env:
+      VCLTL_VERSION: 5.2.1
+      VCLTL_TARGET_VERSION: 10.0.19041.0
+      FREEBSD_VERSION: 15
+      XCODE_VERSION: 16.2
+      MACOS_SDK_VERSION: 15.2
+      TARGET_ARCH: ${{ matrix.arch }}
+      TARGET_PLATFORM: ${{ matrix.platform }}
+      TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Setup zig
+        uses: mlugg/setup-zig@v1
+
+      - name: Install xwin
+        if: ${{ matrix.platform == 'windows-msvc' }}
+        run: |
+          brew update
+          brew install xwin
+
+      - name: Update gnuplot
+        run: |
+          git clone --depth=1 git://git.code.sf.net/p/gnuplot/gnuplot-main deps/gnuplot
+          zig fetch --save=gnuplot deps/gnuplot
+
+      - name: Build and pack
+        run: ./.github/workflows/build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARGET_TRIPLE }}
+          path: gnuplot-${{ env.TARGET_TRIPLE }}.*
+          if-no-files-found: error
+
+      - name: Upload releases
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Nightly Build
+          tag_name: nightly
+          files: gnuplot-${{ env.TARGET_TRIPLE }}.*
+          prerelease: true
+          fail_on_unmatched_files: true
