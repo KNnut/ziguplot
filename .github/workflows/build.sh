@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Setup VC-LTL and xwin
 if [ $TARGET_PLATFORM = windows-msvc ]; then
@@ -15,9 +16,8 @@ fi
 if [ $TARGET_PLATFORM = freebsd ]; then
   FREEBSD_ARCH=$(echo -n $TARGET_ARCH | sed 's/^x86_/amd/')
   DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg; s/-/./g')
-  cd ${RUNNER_TEMP}
-  curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
-  bsdtar xf freebsd-sysroot.pkg --strip-components=3
+  curl -o ${RUNNER_TEMP}/freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
+  bsdtar -xC ${RUNNER_TEMP} -f ${RUNNER_TEMP}/freebsd-sysroot.pkg --strip-components=3
 fi
 
 # Build
