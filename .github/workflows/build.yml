@@ -14,11 +14,13 @@ jobs:
             platform: wasi
     runs-on: macos-latest
     env:
-      VCLTL_VERSION: 5.2.1-Beta4
+      VCLTL_VERSION: 5.2.1
       VCLTL_TARGET_VERSION: 10.0.19041.0
       FREEBSD_VERSION: 15
       XCODE_VERSION: 16.2
       MACOS_SDK_VERSION: 15.2
+      TARGET_ARCH: ${{ matrix.arch }}
+      TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
     steps:
       - name: Check out repository code
@@ -26,77 +28,15 @@ jobs:
 
       - name: Setup zig
         uses: mlugg/setup-zig@v1
-        with:
-          version: master
 
-      - name: Setup VC-LTL
-        if: ${{ matrix.platform == 'windows-msvc' }}
-        run: |
-          curl -LO --output-dir ${RUNNER_TEMP} https://github.com/Chuyu-Team/VC-LTL5/releases/download/v${VCLTL_VERSION}/VC-LTL-Binary.7z
-          mkdir ${RUNNER_TEMP}/VC-LTL
-          bsdtar -xC ${RUNNER_TEMP}/VC-LTL -f ${RUNNER_TEMP}/VC-LTL-Binary.7z TargetPlatform
-
-      - name: Setup xwin
+      - name: Install xwin
         if: ${{ matrix.platform == 'windows-msvc' }}
         run: |
           brew update
           brew install xwin
-          xwin --accept-license --arch ${{ matrix.arch }} --variant desktop --channel release --sdk-version 10.0.22621 splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
 
-      - name: Setup FreeBSD sysroot
-        if: ${{ matrix.platform == 'freebsd' }}
-        run: |
-          FREEBSD_ARCH=$(echo -n ${{ matrix.arch }} | sed 's/^x86_/amd/')
-          DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg; s/-/./g')
-          cd ${RUNNER_TEMP}
-          curl -o freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
-          bsdtar xf freebsd-sysroot.pkg --strip-components=3
-
-      - name: Build
-        run: |
-          zig_args=(
-            -Doptimize=ReleaseFast
-            -Dtarget=${TARGET_TRIPLE}
-          )
-          if [[ ${{ matrix.platform }} = linux-musl ]]; then
-            zig_args+=(
-              -Dmimalloc
-            )
-          elif [[ ${{ matrix.platform }} = windows-msvc ]]; then
-            zig_args+=(
-              -Dvc-ltl-dir=${RUNNER_TEMP}/VC-LTL/TargetPlatform/${VCLTL_TARGET_VERSION}
-              -Dxwin-dir=${RUNNER_TEMP}/xwin
-            )
-          elif [[ ${{ matrix.platform }} = macos ]]; then
-            zig_args+=(
-              --sysroot "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
-              -Dterms=aquaterm
-            )
-          elif [[ ${{ matrix.platform }} = freebsd ]]; then
-            FREEBSD_ARCH=$(echo -n ${{ matrix.arch }} | sed 's/^x86_/amd/')
-            zig_args+=(
-              --sysroot ${RUNNER_TEMP}/freebsd-sysroot/${FREEBSD_ARCH}
-            )
-          elif [[ ${{ matrix.platform }} = wasi ]]; then
-            zig_args+=(
-              -Dcpu="lime1+bulk_memory+reference_types+simd128"
-              -Dmimalloc
-            )
-          fi
-          zig build "${zig_args[@]}"
-
-      - name: Pack
-        run: |
-          mkdir dist
-          cp LICENSE dist
-          cd dist
-          curl -o 'COPYRIGHT' 'https://sourceforge.net/p/gnuplot/gnuplot-main/ci/6f43f417/tree/Copyright?format=raw'
-          cp ../zig-out/bin/gnuplot{,.exe,.wasm} . 2>/dev/null || :
-          if [[ ${{ matrix.platform }} = windows-msvc ]]; then
-            bsdtar -a -cf ../gnuplot-${TARGET_TRIPLE}.zip *
-          else
-            XZ_OPT=-9 bsdtar cJf ../gnuplot-${TARGET_TRIPLE}.tar.xz *
-          fi
+      - name: Build and pack
+        run: ./.github/workflows/build.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
