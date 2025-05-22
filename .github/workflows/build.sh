@@ -12,14 +12,6 @@ if [ $TARGET_PLATFORM = windows-msvc ]; then
   xwin --accept-license --arch $TARGET_ARCH --variant desktop --channel release --sdk-version 10.0.22621 splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
 fi
 
-# Setup FreeBSD sysroot
-if [ $TARGET_PLATFORM = freebsd ]; then
-  FREEBSD_ARCH=$(echo -n $TARGET_ARCH | sed 's/^x86_/amd/')
-  DIST_VERSION=$(curl https://cgit.freebsd.org/ports/plain/devel/freebsd-sysroot/Makefile | perl -0pe 's/.+\nDISTVERSION=\t(.+?)\n.+/$1/smg; s/-/./g')
-  curl -o ${RUNNER_TEMP}/freebsd-sysroot.pkg https://pkg.freebsd.org/FreeBSD:${FREEBSD_VERSION}:amd64/latest/All/${FREEBSD_ARCH}-freebsd-sysroot-${DIST_VERSION}.pkg
-  bsdtar -xC ${RUNNER_TEMP} -f ${RUNNER_TEMP}/freebsd-sysroot.pkg --strip-components=3
-fi
-
 # Build
 zig_args=(
   -Doptimize=ReleaseFast
@@ -38,11 +30,6 @@ elif [ $TARGET_PLATFORM = macos ]; then
   zig_args+=(
     --sysroot "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
     -Dterms=aquaterm
-  )
-elif [ $TARGET_PLATFORM = freebsd ]; then
-  FREEBSD_ARCH=$(echo -n $TARGET_ARCH | sed 's/^x86_/amd/')
-  zig_args+=(
-    --sysroot ${RUNNER_TEMP}/freebsd-sysroot/${FREEBSD_ARCH}
   )
 elif [ $TARGET_PLATFORM = wasi ]; then
   zig_args+=(

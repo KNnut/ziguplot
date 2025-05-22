@@ -6,7 +6,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [x86_64, aarch64]
-        platform: [linux-musl, windows-msvc, macos, freebsd]
+        platform: [linux-musl, windows-msvc, macos, freebsd.14.0, netbsd.10.1]
         include:
           - arch: x86
             platform: windows-msvc
@@ -16,7 +16,6 @@ jobs:
     env:
       VCLTL_VERSION: 5.2.1
       VCLTL_TARGET_VERSION: 10.0.19041.0
-      FREEBSD_VERSION: 15
       XCODE_VERSION: 16.2
       MACOS_SDK_VERSION: 15.2
       TARGET_ARCH: ${{ matrix.arch }}
