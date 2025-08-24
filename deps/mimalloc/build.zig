@@ -54,7 +54,7 @@ pub fn build(b: *std.Build) !void {
     compile.addIncludePath(upstream.path("include"));
 
     if (optimize != .Debug)
-        compile.root_module.addCMacro("NDEBUG", "");
+        compile.root_module.addCMacro("MI_BUILD_RELEASE", "");
 
     if (target.result.abi.isMusl())
         compile.root_module.addCMacro("MI_LIBC_MUSL", "");
