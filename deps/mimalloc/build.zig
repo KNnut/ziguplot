@@ -32,8 +32,8 @@ pub fn build(b: *std.Build) !void {
 
     const upstream = b.dependency("mimalloc", .{ .target = target, .optimize = optimize });
 
-    var cflags = std.ArrayList([]const u8).init(b.allocator);
-    try cflags.appendSlice(&.{
+    var cflags: std.ArrayList([]const u8) = .empty;
+    try cflags.appendSlice(b.allocator, &.{
         "-Wno-unknown-pragmas",
         "-fvisibility=hidden",
         "-Wstrict-prototypes",
@@ -42,9 +42,9 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (target.result.abi.isMusl())
-        try cflags.append("-ftls-model=local-dynamic")
+        try cflags.append(b.allocator, "-ftls-model=local-dynamic")
     else
-        try cflags.append("-ftls-model=initial-exec");
+        try cflags.append(b.allocator, "-ftls-model=initial-exec");
 
     compile.addCSourceFile(.{
         .language = .c,

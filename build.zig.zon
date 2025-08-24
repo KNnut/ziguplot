@@ -1,11 +1,11 @@
 .{
     .name = .ziguplot,
     .version = "0.0.1",
-    .minimum_zig_version = "0.15.0-dev.636+35ba8d95a",
+    .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .gnuplot = .{
-            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/2327fe3206357439d52b5bfa753527b9488d3990.tar.gz",
-            .hash = "N-V-__8AAN8-2wACbvC12OTaaRZQYmngmhbT-cKck4fcL3Vs",
+            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/fdd777585618a34af281969e3d6638fe4bc317f7.tar.gz",
+            .hash = "N-V-__8AAGAm3ABhd11y6-TxQETAeM2QMBEZOWpgPnscfj-v",
         },
         .mimalloc = .{
             .path = "deps/mimalloc",

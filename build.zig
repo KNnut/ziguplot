@@ -60,32 +60,32 @@ pub fn build(b: *std.Build) !void {
             "complex",   "dirent",   "values",
         };
 
-        var array_list = std.ArrayList(u8).init(b.allocator);
+        var array_list: std.ArrayList(u8) = .empty;
 
         inline for (required_headers) |header| {
             const upper = try std.ascii.allocUpperString(b.allocator, header);
             std.mem.replaceScalar(u8, upper, '/', '_');
 
-            try array_list.appendSlice("#if __has_include(<" ++ header ++ ".h>)\n#define HAVE_");
-            try array_list.appendSlice(upper);
-            try array_list.appendSlice("_H 1\n#endif\n");
+            try array_list.appendSlice(b.allocator, "#if __has_include(<" ++ header ++ ".h>)\n#define HAVE_");
+            try array_list.appendSlice(b.allocator, upper);
+            try array_list.appendSlice(b.allocator, "_H 1\n#endif\n");
         }
 
-        try array_list.appendSlice("#include \"extra_config.h\"\n");
+        try array_list.appendSlice(b.allocator, "#include \"extra_config.h\"\n");
 
         if (target.result.abi == .msvc) {
             inline for (.{
                 "isatty",   "stricmp", "strnicmp", "strdup",
                 "wcsnicmp", "read",    "fileno",   "setmode",
-            }) |sym| try array_list.appendSlice("#define " ++ sym ++ " _" ++ sym ++ "\n");
+            }) |sym| try array_list.appendSlice(b.allocator, "#define " ++ sym ++ " _" ++ sym ++ "\n");
 
             // MSVC does not support C99 complex number
             // See https://learn.microsoft.com/cpp/c-runtime-library/complex-math-support
-            try array_list.appendSlice("#undef HAVE_COMPLEX_H\n");
+            try array_list.appendSlice(b.allocator, "#undef HAVE_COMPLEX_H\n");
         }
 
         if (mimalloc)
-            try array_list.appendSlice("#include \"mimalloc-override.h\"\n");
+            try array_list.appendSlice(b.allocator, "#include \"mimalloc-override.h\"\n");
 
         const wf = b.addWriteFile("config.h", array_list.items);
         lib.addIncludePath(wf.getDirectory());
@@ -112,11 +112,11 @@ pub fn build(b: *std.Build) !void {
         const wf = b.addWriteFiles();
 
         {
-            var array_list = std.ArrayList(u8).init(b.allocator);
+            var array_list: std.ArrayList(u8) = .empty;
 
             // Unset default drivers
             inline for (.{ "POSTSCRIPT", "PSLATEX" }) |driver|
-                try array_list.appendSlice("#undef " ++ driver ++ "_DRIVER\n");
+                try array_list.appendSlice(b.allocator, "#undef " ++ driver ++ "_DRIVER\n");
 
             if (target.result.os.tag == .wasi) {
                 extra_config.addValues(.{
@@ -124,17 +124,17 @@ pub fn build(b: *std.Build) !void {
                     .NO_BITMAP_SUPPORT = true,
                 });
             } else {
-                try array_list.appendSlice(
+                try array_list.appendSlice(b.allocator,
                     \\#include_next "dumb.trm"
                     \\
                 );
 
                 inline for (.{ "block.trm", "emf.trm", "pict2e.trm" }) |driver|
-                    try array_list.appendSlice("#include \"" ++ driver ++ "\"\n");
+                    try array_list.appendSlice(b.allocator, "#include \"" ++ driver ++ "\"\n");
             }
 
             // Common terminals
-            try array_list.appendSlice(
+            try array_list.appendSlice(b.allocator,
                 \\#include "svg.trm"
                 \\
             );
@@ -155,9 +155,9 @@ pub fn build(b: *std.Build) !void {
                 } else if (std.mem.eql(u8, term, "cetz")) {
                     enable_latex = true;
                 } else if (!std.mem.eql(u8, term, "debug")) continue;
-                try array_list.appendSlice("#include \"");
-                try array_list.appendSlice(term);
-                try array_list.appendSlice(".trm\"\n");
+                try array_list.appendSlice(b.allocator, "#include \"");
+                try array_list.appendSlice(b.allocator, term);
+                try array_list.appendSlice(b.allocator, ".trm\"\n");
             }
             _ = wf.add("dumb.trm", array_list.items);
         }
@@ -206,8 +206,8 @@ pub fn build(b: *std.Build) !void {
         const stat = try file.stat();
         const bytes = try file.readToEndAlloc(b.allocator, stat.size);
 
-        var array_list = std.ArrayList(u8).init(b.allocator);
-        try array_list.appendSlice(&.{
+        var array_list: std.ArrayList(u8) = .empty;
+        try array_list.appendSlice(b.allocator, &.{
             // `TERM_IS_POSTSCRIPT` is used by `lua.trm`, `post.trm` and `pslatex.trm`
             4,
             // `TERM_REUSES_BOXTEXT` is used by `cairo.trm` and `pslatex.trm`
@@ -217,7 +217,7 @@ pub fn build(b: *std.Build) !void {
         });
         if (!enable_latex)
             // `TERM_IS_LATEX`
-            try array_list.append(14);
+            try array_list.append(b.allocator, 14);
 
         var size = stat.size;
         for (array_list.items) |num| {
@@ -493,16 +493,16 @@ pub fn build(b: *std.Build) !void {
 
     // Setup cross-compilation
     const compiles = blk: {
-        var array_list = std.ArrayList(*std.Build.Step.Compile).init(b.allocator);
-        try array_list.appendSlice(&.{ lib, exe });
+        var array_list: std.ArrayList(*std.Build.Step.Compile) = .empty;
+        try array_list.appendSlice(b.allocator, &.{ lib, exe });
         if (mimalloc) {
             if (b.lazyDependency("mimalloc", .{
                 .target = target,
                 .optimize = optimize,
                 .override = false,
-            })) |mimalloc_dep| try array_list.append(mimalloc_dep.artifact("mimalloc"));
+            })) |mimalloc_dep| try array_list.append(b.allocator, mimalloc_dep.artifact("mimalloc"));
         }
-        break :blk try array_list.toOwnedSlice();
+        break :blk try array_list.toOwnedSlice(b.allocator);
     };
 
     if (target.result.abi == .msvc) {
