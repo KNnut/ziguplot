@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) !void {
         "-Wstrict-prototypes",
         "-Wno-static-in-inline",
         "-fno-builtin-malloc",
+        "-Wno-date-time",
     });
 
     if (target.result.abi.isMusl())
