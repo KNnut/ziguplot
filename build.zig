@@ -169,7 +169,8 @@ pub fn build(b: *std.Build) !void {
             defer file.close();
 
             const stat = try file.stat();
-            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+            var file_reader = file.reader(&.{});
+            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
             inline for (.{
@@ -204,7 +205,8 @@ pub fn build(b: *std.Build) !void {
         defer file.close();
 
         const stat = try file.stat();
-        const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+        var file_reader = file.reader(&.{});
+        const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
         var array_list: std.ArrayList(u8) = .empty;
         try array_list.appendSlice(b.allocator, &.{
@@ -269,7 +271,8 @@ pub fn build(b: *std.Build) !void {
             defer file.close();
 
             const stat = try file.stat();
-            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+            var file_reader = file.reader(&.{});
+            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
             const pair = .{ "#ifdef NO_GIH\n#ifdef _WIN32", "#ifdef NO_GIH\n#if 0" };
@@ -287,7 +290,8 @@ pub fn build(b: *std.Build) !void {
             defer file.close();
 
             const stat = try file.stat();
-            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+            var file_reader = file.reader(&.{});
+            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             const pair = .{
                 "!defined(MSDOS)",
@@ -369,7 +373,8 @@ pub fn build(b: *std.Build) !void {
             defer file.close();
 
             const stat = try file.stat();
-            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+            var file_reader = file.reader(&.{});
+            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
             inline for (.{
@@ -399,7 +404,8 @@ pub fn build(b: *std.Build) !void {
             defer file.close();
 
             const stat = try file.stat();
-            const bytes = try file.readToEndAlloc(b.allocator, stat.size);
+            var file_reader = file.reader(&.{});
+            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             const pair = .{
                 "!defined(MSDOS)",
