@@ -14,8 +14,8 @@ fi
 
 # Build
 zig_args=(
-  -Doptimize=ReleaseFast
   -Dtarget=${TARGET_TRIPLE}
+  -Doptimize=${OPTIMIZE_MODE}
 )
 if [ $TARGET_PLATFORM = linux-musl ]; then
   zig_args+=(

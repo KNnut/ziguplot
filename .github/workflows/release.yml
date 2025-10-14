@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [x86_64, aarch64]
-        platform: [linux-musl, windows-msvc, macos, freebsd.14.0, netbsd.10.1]
+        platform: [linux-musl, windows-msvc, macos, freebsd, netbsd]
         include:
           - arch: x86
             platform: windows-msvc
@@ -18,13 +18,15 @@ jobs:
             platform: wasi
     runs-on: macos-latest
     env:
-      VCLTL_VERSION: 5.2.1
+      XWIN_SDK_VERSION: 10.0.22621
+      VCLTL_VERSION: 5.2.2
       VCLTL_TARGET_VERSION: 10.0.19041.0
-      XCODE_VERSION: 16.2
-      MACOS_SDK_VERSION: 15.2
+      XCODE_VERSION: 26.0.1
+      MACOS_SDK_VERSION: 26.0
       TARGET_ARCH: ${{ matrix.arch }}
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
+      OPTIMIZE_MODE: ReleaseFast
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
