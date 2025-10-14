@@ -142,10 +142,7 @@ pub fn build(b: *std.Build) !void {
             var term_list = std.mem.tokenizeScalar(u8, terms, ',');
             while (term_list.next()) |term| {
                 if (std.mem.eql(u8, term, "aquaterm")) {
-                    if (target.result.os.tag != .macos) {
-                        std.debug.print("The AquaTerm terminal requires macOS but the target OS is {s}.\n", .{@tagName(target.result.os.tag)});
-                        return error.InvalidOSForAquaTerm;
-                    }
+                    if (target.result.os.tag != .macos) continue;
                     enable_aquaterm = true;
                     extra_config.addValues(.{
                         .HAVE_FRAMEWORK_AQUATERM = true,

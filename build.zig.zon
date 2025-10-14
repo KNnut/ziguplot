@@ -1,7 +1,7 @@
 .{
     .name = .ziguplot,
     .version = "0.0.1",
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .gnuplot = .{
             .url = "https://github.com/salewski/gnuplot-main-mirror/archive/fdd777585618a34af281969e3d6638fe4bc317f7.tar.gz",
