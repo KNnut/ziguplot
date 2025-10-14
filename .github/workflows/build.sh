@@ -9,7 +9,7 @@ if [ $TARGET_PLATFORM = windows-msvc ]; then
   bsdtar -xC ${RUNNER_TEMP}/VC-LTL -f ${RUNNER_TEMP}/VC-LTL-Binary.7z TargetPlatform
 
   # Setup xwin
-  xwin --accept-license --arch $TARGET_ARCH --variant desktop --channel release --sdk-version 10.0.22621 splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
+  xwin --accept-license --arch $TARGET_ARCH --variant desktop --channel release --sdk-version ${XWIN_SDK_VERSION} splat --preserve-ms-arch-notation --output ${RUNNER_TEMP}/xwin
 fi
 
 # Build
