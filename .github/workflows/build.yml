@@ -1,40 +1,49 @@
 name: Build
 on: push
 
-env:
-  OPTIMIZE_MODES: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
-
 jobs:
   define-matrix:
     runs-on: ubuntu-24.04-arm
     outputs:
-      include: ${{ steps.include.outputs.include }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      ARCH: [x86_64, aarch64]
+      PLATFORM: [linux-musl, windows-msvc, macos, freebsd, netbsd]
+      OPTIMIZE_MODE: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
     steps:
-      - name: Define include
-        id: include
+      - name: Set matrix
+        id: set-matrix
         run: |
-          echo "include=$(yq -n -oj -I0 '
-            [
-              { "arch": "x86", "platform": "windows-msvc" },
-              { "arch": "wasm32", "platform": "wasi" }
-            ] as $bases |
-            env(OPTIMIZE_MODES) as $optimizations |
-            [
-              $bases[] as $b |
-              $optimizations[] as $o |
-              $b + { "optimize": $o }
-            ]
+          echo "matrix=$(yq -n -oj -I0 '
+            env(ARCH) as $arch |
+            env(PLATFORM) as $platform |
+            env(OPTIMIZE_MODE) as $optimize_mode |
+            (
+              [
+                { "arch": "x86", "platform": "windows-msvc" },
+                { "arch": "wasm32", "platform": "wasi" }
+              ]
+              +
+              [
+                $arch[] as $a |
+                $platform[] as $p |
+                { "arch": $a, "platform": $p }
+              ]
+            ) as $triple |
+            {
+              "include": [
+                $triple[] as $t |
+                $optimize_mode[] as $o |
+                $t + { "optimize": $o }
+              ]
+            }
           ')" >> "$GITHUB_OUTPUT"
   build:
     runs-on: macos-latest
     needs: define-matrix
     strategy:
       fail-fast: false
-      matrix:
-        arch: [x86_64, aarch64]
-        platform: [linux-musl, windows-msvc, macos, freebsd, netbsd]
-        optimize: ${{ env.OPTIMIZE_MODES }}
-        include: ${{ fromJSON(needs.define-matrix.outputs.include) }}
+      matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
     env:
       XWIN_SDK_VERSION: 10.0.22621
       VCLTL_VERSION: 5.2.2
