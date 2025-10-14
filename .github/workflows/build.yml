@@ -11,8 +11,10 @@ jobs:
         include:
           - arch: x86
             platform: windows-msvc
+            optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
           - arch: wasm32
             platform: wasi
+            optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
     runs-on: macos-latest
     env:
       XWIN_SDK_VERSION: 10.0.22621
