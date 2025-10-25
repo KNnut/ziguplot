@@ -4,8 +4,8 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .gnuplot = .{
-            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/fdd777585618a34af281969e3d6638fe4bc317f7.tar.gz",
-            .hash = "N-V-__8AAGAm3ABhd11y6-TxQETAeM2QMBEZOWpgPnscfj-v",
+            .url = "https://github.com/salewski/gnuplot-main-mirror/archive/94b1acd2b7a3bf3c5db52322dedee45fff0354ee.tar.gz",
+            .hash = "N-V-__8AAHpw3ACWTw5VmHvFvMJJF_UqpQz7waA7ZdeTk0_r",
         },
         .mimalloc = .{
             .path = "deps/mimalloc",
