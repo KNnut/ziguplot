@@ -679,6 +679,8 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_STPCPY = true,
             .HAVE_STRNDUP = true,
             .HAVE_STRLCPY = true,
+            .HAVE_FSEEKO = true,
+            .HAVE_OFF_T = true,
         });
     }
 
