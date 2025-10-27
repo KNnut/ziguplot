@@ -37,6 +37,7 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            .sanitize_c = .off,
         }),
     });
 
@@ -303,7 +304,6 @@ pub fn build(b: *std.Build) !void {
             .language = if (enable_aquaterm) .objective_c else .c,
             .root = wf.getDirectory(),
             .files = &srcs,
-            .flags = &.{"-fno-sanitize=undefined"},
         });
     }
 
@@ -315,6 +315,7 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            .sanitize_c = .off,
         }),
     });
 
@@ -415,7 +416,6 @@ pub fn build(b: *std.Build) !void {
         exe.addCSourceFiles(.{
             .root = upstream.path("src"),
             .files = &srcs,
-            .flags = &.{"-fno-sanitize=undefined"},
         });
     }
 
@@ -445,7 +445,6 @@ pub fn build(b: *std.Build) !void {
         exe.addCSourceFiles(.{
             .root = upstream.path("src/win"),
             .files = &win_srcs,
-            .flags = &.{"-fno-sanitize=undefined"},
         });
 
         inline for (.{
