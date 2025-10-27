@@ -1,10 +1,10 @@
 .{
     .name = .mimalloc,
-    .version = "2.2.4",
+    .version = "3.1.5",
     .dependencies = .{
         .mimalloc = .{
-            .url = "https://github.com/microsoft/mimalloc/archive/v2.2.4.tar.gz",
-            .hash = "N-V-__8AAGvETADupK4dN3OV_nxf0UliqtsRSXri-iwwMbC_",
+            .url = "https://github.com/microsoft/mimalloc/archive/v3.1.5.tar.gz",
+            .hash = "N-V-__8AAHPQTQDkH0rToYlrIp1SrXj7MNgneE3wnHa6SSYS",
         },
     },
     .paths = .{

@@ -44,10 +44,12 @@ pub fn build(b: *std.Build) !void {
         "-Wno-date-time",
     });
 
-    if (target.result.abi.isMusl())
-        try cflags.append(b.allocator, "-ftls-model=local-dynamic")
-    else
+    if (target.result.abi.isMusl()) {
+        compile.root_module.addCMacro("MI_LIBC_MUSL", "");
+        try cflags.append(b.allocator, "-ftls-model=local-dynamic");
+    } else {
         try cflags.append(b.allocator, "-ftls-model=initial-exec");
+    }
 
     compile.addCSourceFile(.{
         .language = .c,
@@ -59,8 +61,8 @@ pub fn build(b: *std.Build) !void {
     if (optimize != .Debug)
         compile.root_module.addCMacro("MI_BUILD_RELEASE", "");
 
-    if (target.result.abi.isMusl())
-        compile.root_module.addCMacro("MI_LIBC_MUSL", "");
+    if (target.result.os.tag == .wasi)
+        compile.root_module.addCMacro("mi_align_up_ptr", "_mi_align_up_ptr");
 
     if (override) {
         compile.root_module.addCMacro("MI_MALLOC_OVERRIDE", "");
