@@ -51,12 +51,12 @@ pub fn build(b: *std.Build) !void {
         try cflags.append(b.allocator, "-ftls-model=initial-exec");
     }
 
-    compile.addCSourceFile(.{
+    compile.root_module.addCSourceFile(.{
         .language = .c,
         .file = upstream.path("src/static.c"),
         .flags = cflags.items,
     });
-    compile.addIncludePath(upstream.path("include"));
+    compile.root_module.addIncludePath(upstream.path("include"));
 
     if (optimize != .Debug)
         compile.root_module.addCMacro("MI_BUILD_RELEASE", "");

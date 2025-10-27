@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (optimize != .Debug) {
-        lib.want_lto = target.result.ofmt != .macho;
+        lib.lto = if (target.result.ofmt != .macho) .thin else .none;
         lib.root_module.strip = true;
         if (target.result.os.tag != .windows)
             lib.root_module.unwind_tables = .none;
@@ -89,12 +89,12 @@ pub fn build(b: *std.Build) !void {
             try array_list.appendSlice(b.allocator, "#include \"mimalloc-override.h\"\n");
 
         const wf = b.addWriteFile("config.h", array_list.items);
-        lib.addIncludePath(wf.getDirectory());
+        lib.root_module.addIncludePath(wf.getDirectory());
         break :blk wf;
     };
 
     const extra_config = addExtraConfigHeader(b, target.result, "extra_config.h");
-    lib.addConfigHeader(extra_config);
+    lib.root_module.addConfigHeader(extra_config);
 
     if (target.result.abi == .msvc)
         lib.root_module.addCMacro("__MSC__", "");
@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) !void {
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
         lib.root_module.addCMacro("__wasm_exception_handling__", "");
-        lib.addCSourceFile(.{
+        lib.root_module.addCSourceFile(.{
             .file = b.path("src/wasm_stub.c"),
             .flags = &.{"-std=gnu23"},
         });
@@ -148,8 +148,8 @@ pub fn build(b: *std.Build) !void {
                     extra_config.addValues(.{
                         .HAVE_FRAMEWORK_AQUATERM = true,
                     });
-                    lib.linkFramework("Foundation");
-                    lib.linkFramework("AquaTerm");
+                    lib.root_module.linkFramework("Foundation", .{});
+                    lib.root_module.linkFramework("AquaTerm", .{});
                 } else if (std.mem.eql(u8, term, "cetz")) {
                     enable_latex = true;
                 } else if (!std.mem.eql(u8, term, "debug")) continue;
@@ -193,7 +193,7 @@ pub fn build(b: *std.Build) !void {
             _ = wf.add("svg.trm", bytes[0..size]);
         }
 
-        lib.addIncludePath(wf.getDirectory());
+        lib.root_module.addIncludePath(wf.getDirectory());
     }
 
     {
@@ -228,12 +228,12 @@ pub fn build(b: *std.Build) !void {
         }
 
         const wf = b.addWriteFile("term_api.h", bytes[0..size]);
-        lib.addIncludePath(wf.getDirectory());
+        lib.root_module.addIncludePath(wf.getDirectory());
     }
 
-    lib.addIncludePath(upstream.path("src"));
-    lib.addIncludePath(b.path("term"));
-    lib.addIncludePath(upstream.path("term"));
+    lib.root_module.addIncludePath(upstream.path("src"));
+    lib.root_module.addIncludePath(b.path("term"));
+    lib.root_module.addIncludePath(upstream.path("term"));
 
     {
         const srcs = .{
@@ -300,7 +300,7 @@ pub fn build(b: *std.Build) !void {
             _ = wf.add("save.c", save_c);
         }
 
-        lib.addCSourceFiles(.{
+        lib.root_module.addCSourceFiles(.{
             .language = if (enable_aquaterm) .objective_c else .c,
             .root = wf.getDirectory(),
             .files = &srcs,
@@ -326,23 +326,23 @@ pub fn build(b: *std.Build) !void {
             .override = false,
         })) |mimalloc_dep| {
             inline for (.{ lib, exe }) |compile|
-                compile.linkLibrary(mimalloc_dep.artifact("mimalloc"));
+                compile.root_module.linkLibrary(mimalloc_dep.artifact("mimalloc"));
         }
     }
 
-    exe.linkLibrary(lib);
+    exe.root_module.linkLibrary(lib);
     exe.root_module.addCMacro("HAVE_CONFIG_H", "");
-    exe.addConfigHeader(extra_config);
-    exe.addIncludePath(config_h_wf.getDirectory());
-    exe.addIncludePath(upstream.path("src"));
-    exe.addIncludePath(upstream.path("term"));
+    exe.root_module.addConfigHeader(extra_config);
+    exe.root_module.addIncludePath(config_h_wf.getDirectory());
+    exe.root_module.addIncludePath(upstream.path("src"));
+    exe.root_module.addIncludePath(upstream.path("term"));
 
     const use_llvm = b.option(bool, "use-llvm", "Use Zig's LLVM backend");
     exe.use_llvm = use_llvm;
     exe.use_lld = use_llvm;
 
     if (optimize != .Debug) {
-        exe.want_lto = target.result.ofmt != .macho;
+        exe.lto = if (target.result.ofmt != .macho) .thin else .none;
         exe.root_module.strip = true;
         if (target.result.os.tag != .windows)
             exe.root_module.unwind_tables = .none;
@@ -413,7 +413,7 @@ pub fn build(b: *std.Build) !void {
 
             _ = wf.add("plot.c", plot_c);
         }
-        exe.addCSourceFiles(.{
+        exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src"),
             .files = &srcs,
         });
@@ -423,14 +423,14 @@ pub fn build(b: *std.Build) !void {
         if (b.lazyDependency("aquaterm", .{ .target = target })) |aquaterm| {
             const framework_dir = aquaterm.namedWriteFiles("framework").getDirectory();
             inline for (.{ lib, exe }) |compile|
-                compile.addFrameworkPath(framework_dir);
+                compile.root_module.addFrameworkPath(framework_dir);
         }
     }
 
     if (target.result.os.tag == .wasi) {
         exe.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
         exe.root_module.addCMacro("__wasm_exception_handling__", "");
-        exe.addCSourceFile(.{
+        exe.root_module.addCSourceFile(.{
             .file = b.path("src/wasm_stub_sjlj.c"),
             .flags = &.{"-std=c23"},
         });
@@ -442,7 +442,7 @@ pub fn build(b: *std.Build) !void {
             "wd2d.cpp",  "wgdiplus.cpp", "wgnuplib.c", "wgraph.c",
             "winmain.c", "wpause.c",     "wprinter.c",
         };
-        exe.addCSourceFiles(.{
+        exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src/win"),
             .files = &win_srcs,
         });
@@ -451,18 +451,18 @@ pub fn build(b: *std.Build) !void {
             "comctl32", "comdlg32", "ole32",  "msimg32",
             "shlwapi",  "winspool", "gdi32",  "gdiplus",
             "d2d1",     "d3d11",    "dwrite", "prntvpt",
-        }) |dll| exe.linkSystemLibrary(dll);
+        }) |dll| exe.root_module.linkSystemLibrary(dll, .{});
 
         exe.subsystem = .Console;
         if (target.result.abi == .msvc) {
             // Setup MSVC
             exe.root_module.addCMacro("__MSC__", "");
             inline for (.{ "user32", "shell32" }) |dll|
-                exe.linkSystemLibrary(dll);
+                exe.root_module.linkSystemLibrary(dll, .{});
         } else {
             // Setup MinGW
             exe.mingw_unicode_entry_point = true;
-            exe.linkLibCpp();
+            exe.root_module.link_libcpp = true;
         }
         {
             // Add the rc file
@@ -483,7 +483,7 @@ pub fn build(b: *std.Build) !void {
                 \\</asmv3:application>
                 \\</assembly>
             );
-            exe.addWin32ResourceFile(.{
+            exe.root_module.addWin32ResourceFile(.{
                 .file = rc,
                 .include_paths = &.{
                     upstream.path("src/win"),
@@ -529,7 +529,7 @@ pub fn build(b: *std.Build) !void {
         };
 
         if (vc_ltl_dir) |vc_ltl|
-            exe.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ vc_ltl, "lib", vc_ltl_arch }) });
+            exe.root_module.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ vc_ltl, "lib", vc_ltl_arch }) });
 
         if (xwin_dir) |xwin| {
             const xwin_include_dir = b.pathJoin(&.{ xwin, "sdk", "include", "ucrt" });
@@ -538,9 +538,9 @@ pub fn build(b: *std.Build) !void {
                 inline for (.{
                     xwin_sys_include_dir,
                     xwin_include_dir,
-                }) |include| compile.addSystemIncludePath(.{ .cwd_relative = include });
+                }) |include| compile.root_module.addSystemIncludePath(.{ .cwd_relative = include });
                 inline for (.{ "um", "shared" }) |dir|
-                    compile.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ xwin, "sdk", "include", dir }) });
+                    compile.root_module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ xwin, "sdk", "include", dir }) });
             }
 
             const xwin_crt_dir = b.pathJoin(&.{ xwin, "sdk", "lib", "ucrt", xwin_arch });
@@ -550,7 +550,7 @@ pub fn build(b: *std.Build) !void {
                 xwin_msvc_lib_dir,
                 xwin_crt_dir,
                 kernel32_lib_dir,
-            }) |library| exe.addLibraryPath(.{ .cwd_relative = library });
+            }) |library| exe.root_module.addLibraryPath(.{ .cwd_relative = library });
 
             {
                 // Set LibC file
@@ -603,7 +603,7 @@ pub fn build(b: *std.Build) !void {
         if (enable_aquaterm) {
             const sys_frameworks_dir = b.pathJoin(&.{ sysroot, "System", "Library", "Frameworks" });
             inline for (.{ lib, exe }) |compile|
-                compile.addSystemFrameworkPath(.{ .cwd_relative = sys_frameworks_dir });
+                compile.root_module.addSystemFrameworkPath(.{ .cwd_relative = sys_frameworks_dir });
         }
     }
 
