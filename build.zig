@@ -712,6 +712,7 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
     else
         // Non-Windows
         extra_config.addValues(.{
+            .HAVE_POPEN = true,
             .PIPE_IPC = true,
         });
 
