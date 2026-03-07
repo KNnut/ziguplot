@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
-    const target = b.standardTargetOptions(.{});
+    var target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const terms: []const u8 = b.option(
@@ -29,6 +29,31 @@ pub fn build(b: *std.Build) !void {
         "Enable mimalloc",
     ) orelse false;
 
+    const wasm_eh: bool = b.option(
+        bool,
+        "wasm-eh",
+        "Enable WebAssembly exception handling",
+    ) orelse target.result.cpu.arch.isWasm() and target.result.cpu.arch.isWasm();
+
+    var cflags: std.ArrayList([]const u8) = .empty;
+
+    if (target.result.cpu.arch.isWasm()) {
+        // https://codeberg.org/ziglang/zig/issues/31436
+        target.query.cpu_features_add.removeFeature(@intFromEnum(std.Target.wasm.Feature.exception_handling));
+        if (wasm_eh) {
+            try cflags.appendSlice(b.allocator, &.{
+                "-mllvm",
+                "-wasm-enable-sjlj",
+                "-mllvm",
+                "-wasm-use-legacy-eh=false",
+                "-Xclang",
+                "-target-feature",
+                "-Xclang",
+                "+exception-handling",
+            });
+        }
+    }
+
     const lib = b.addLibrary(.{
         .linkage = .static,
         .name = "gnuplot",
@@ -41,7 +66,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (optimize != .Debug) {
-        lib.lto = if (target.result.ofmt != .macho) .thin else .none;
+        lib.lto = if (target.result.ofmt != .macho and !wasm_eh) .thin else .none;
         lib.root_module.strip = true;
         if (target.result.os.tag != .windows)
             lib.root_module.unwind_tables = .none;
@@ -97,7 +122,12 @@ pub fn build(b: *std.Build) !void {
 
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-        lib.root_module.addCMacro("__wasm_exception_handling__", "");
+        // https://codeberg.org/ziglang/zig/issues/31436
+        if (wasm_eh)
+            lib.root_module.addCSourceFile(.{
+                .file = .{ .cwd_relative = try b.graph.zig_lib_directory.join(b.allocator, &.{ "libc", "wasi", "libc-top-half", "musl", "src", "setjmp", "wasm32", "rt.c" }) },
+                .flags = cflags.items,
+            });
     }
 
     {
@@ -239,6 +269,7 @@ pub fn build(b: *std.Build) !void {
             .language = if (enable_aquaterm) .objective_c else .c,
             .root = wf.getDirectory(),
             .files = &srcs,
+            .flags = cflags.items,
         });
     }
 
@@ -278,7 +309,7 @@ pub fn build(b: *std.Build) !void {
     exe.use_lld = use_llvm;
 
     if (optimize != .Debug) {
-        exe.lto = if (target.result.ofmt != .macho) .thin else .none;
+        exe.lto = if (target.result.ofmt != .macho and !wasm_eh) .thin else .none;
         exe.root_module.strip = true;
         if (target.result.os.tag != .windows)
             exe.root_module.unwind_tables = .none;
@@ -333,6 +364,7 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src"),
             .files = &srcs,
+            .flags = cflags.items,
         });
     }
 
@@ -344,14 +376,8 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
-    if (target.result.os.tag == .wasi) {
+    if (target.result.os.tag == .wasi)
         exe.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-        exe.root_module.addCMacro("__wasm_exception_handling__", "");
-        exe.root_module.addCSourceFile(.{
-            .file = b.path("src/wasm_stub_sjlj.c"),
-            .flags = &.{"-std=c23"},
-        });
-    }
 
     if (target.result.os.tag == .windows) {
         // Windows
@@ -362,6 +388,7 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src/win"),
             .files = &win_srcs,
+            .flags = cflags.items,
         });
 
         inline for (.{
