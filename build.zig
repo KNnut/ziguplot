@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) !void {
 
     const lib = b.addLibrary(.{
         .linkage = .static,
-        .name = "libgnuplot",
+        .name = "gnuplot",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -108,6 +108,10 @@ pub fn build(b: *std.Build) !void {
         });
     }
 
+    var threaded: std.Io.Threaded = .init(b.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
     {
         // Custom terminals
         const wf = b.addWriteFiles();
@@ -163,11 +167,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Minify `svg.trm`
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile("term/svg.trm", .{});
-            defer file.close();
+            const file = try upstream_dir.openFile(io, "term/svg.trm", .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
-            var file_reader = file.reader(&.{});
+            const stat = try file.stat(io);
+            var file_reader = file.reader(io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
@@ -199,11 +203,11 @@ pub fn build(b: *std.Build) !void {
     {
         // Minify `term_api.h`
         const upstream_dir = upstream.builder.build_root.handle;
-        const file = try upstream_dir.openFile("src/term_api.h", .{});
-        defer file.close();
+        const file = try upstream_dir.openFile(io, "src/term_api.h", .{});
+        defer file.close(io);
 
-        const stat = try file.stat();
-        var file_reader = file.reader(&.{});
+        const stat = try file.stat(io);
+        var file_reader = file.reader(io, &.{});
         const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
         var array_list: std.ArrayList(u8) = .empty;
@@ -265,11 +269,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Modify `command.c` to disable help in Windows as well
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile("src/command.c", .{});
-            defer file.close();
+            const file = try upstream_dir.openFile(io, "src/command.c", .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
-            var file_reader = file.reader(&.{});
+            const stat = try file.stat(io);
+            var file_reader = file.reader(io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
@@ -284,11 +288,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Modify `save.c` to disable save changes in Wasm
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile("src/save.c", .{});
-            defer file.close();
+            const file = try upstream_dir.openFile(io, "src/save.c", .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
-            var file_reader = file.reader(&.{});
+            const stat = try file.stat(io);
+            var file_reader = file.reader(io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             const pair = .{
@@ -367,11 +371,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Minify `mouse.c`
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile("src/mouse.c", .{});
-            defer file.close();
+            const file = try upstream_dir.openFile(io, "src/mouse.c", .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
-            var file_reader = file.reader(&.{});
+            const stat = try file.stat(io);
+            var file_reader = file.reader(io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
@@ -398,11 +402,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Modify `plot.c` to disable save changes in Wasm
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile("src/plot.c", .{});
-            defer file.close();
+            const file = try upstream_dir.openFile(io, "src/plot.c", .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
-            var file_reader = file.reader(&.{});
+            const stat = try file.stat(io);
+            var file_reader = file.reader(io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             const pair = .{
