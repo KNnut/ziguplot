@@ -8,7 +8,8 @@
             .hash = "N-V-__8AAHpw3ACWTw5VmHvFvMJJF_UqpQz7waA7ZdeTk0_r",
         },
         .mimalloc = .{
-            .path = "deps/mimalloc",
+            .url = "git+https://github.com/KNnut/mimalloc#b08761006329a7ae437a3f03f8c88026f53ccfb4",
+            .hash = "mimalloc-3.2.8-9DdHgYkcAADcuFuIUP1lcwR6kyy8SLxRpEv2DubYkR2a",
             .lazy = true,
         },
         .aquaterm = .{

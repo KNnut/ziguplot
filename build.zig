@@ -85,9 +85,6 @@ pub fn build(b: *std.Build) !void {
             try array_list.appendSlice(b.allocator, "#undef HAVE_COMPLEX_H\n");
         }
 
-        if (mimalloc)
-            try array_list.appendSlice(b.allocator, "#include \"mimalloc-override.h\"\n");
-
         const wf = b.addWriteFile("config.h", array_list.items);
         lib.root_module.addIncludePath(wf.getDirectory());
         break :blk wf;
@@ -327,10 +324,11 @@ pub fn build(b: *std.Build) !void {
         if (b.lazyDependency("mimalloc", .{
             .target = target,
             .optimize = optimize,
-            .override = false,
+            .object = true,
+            .simd = true,
         })) |mimalloc_dep| {
             inline for (.{ lib, exe }) |compile|
-                compile.root_module.linkLibrary(mimalloc_dep.artifact("mimalloc"));
+                compile.root_module.addObject(mimalloc_dep.artifact("mimalloc"));
         }
     }
 
@@ -505,7 +503,8 @@ pub fn build(b: *std.Build) !void {
             if (b.lazyDependency("mimalloc", .{
                 .target = target,
                 .optimize = optimize,
-                .override = false,
+                .object = true,
+                .simd = true,
             })) |mimalloc_dep| try array_list.append(b.allocator, mimalloc_dep.artifact("mimalloc"));
         }
         break :blk try array_list.toOwnedSlice(b.allocator);
