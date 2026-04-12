@@ -99,10 +99,6 @@ pub fn build(b: *std.Build) !void {
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
         lib.root_module.addCMacro("__wasm_exception_handling__", "");
-        lib.root_module.addCSourceFile(.{
-            .file = b.path("src/wasm_stub.c"),
-            .flags = &.{"-std=gnu23"},
-        });
     }
 
     var threaded: std.Io.Threaded = .init(b.allocator, .{});
@@ -258,8 +254,7 @@ pub fn build(b: *std.Build) !void {
         // Avoid depending on original headers
         const wf = b.addWriteFiles();
         inline for (srcs) |source| {
-            if (!std.mem.eql(u8, source, "command.c") and
-                !std.mem.eql(u8, source, "save.c"))
+            if (!std.mem.eql(u8, source, "command.c"))
                 _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
         }
 
@@ -280,25 +275,6 @@ pub fn build(b: *std.Build) !void {
             size -= diff * times;
 
             _ = wf.add("command.c", bytes[0..size]);
-        }
-
-        {
-            // Modify `save.c` to disable save changes in Wasm
-            const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(io, "src/save.c", .{});
-            defer file.close(io);
-
-            const stat = try file.stat(io);
-            var file_reader = file.reader(io, &.{});
-            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
-
-            const pair = .{
-                "!defined(MSDOS)",
-                "!defined(MSDOS) && !defined(__wasm__)",
-            };
-            const save_c = try std.mem.replaceOwned(u8, b.allocator, bytes, pair[0], pair[1]);
-
-            _ = wf.add("save.c", save_c);
         }
 
         lib.root_module.addCSourceFiles(.{
@@ -361,8 +337,7 @@ pub fn build(b: *std.Build) !void {
 
         const wf = b.addWriteFiles();
         inline for (srcs) |source| {
-            if (!std.mem.eql(u8, source, "mouse.c") and
-                !std.mem.eql(u8, source, "plot.c"))
+            if (!std.mem.eql(u8, source, "mouse.c"))
                 _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
         }
 
@@ -397,24 +372,6 @@ pub fn build(b: *std.Build) !void {
             _ = wf.add("mouse.c", bytes[0..size]);
         }
 
-        {
-            // Modify `plot.c` to disable save changes in Wasm
-            const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(io, "src/plot.c", .{});
-            defer file.close(io);
-
-            const stat = try file.stat(io);
-            var file_reader = file.reader(io, &.{});
-            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
-
-            const pair = .{
-                "!defined(MSDOS)",
-                "!defined(MSDOS) && !defined(__wasm__)",
-            };
-            const plot_c = try std.mem.replaceOwned(u8, b.allocator, bytes, pair[0], pair[1]);
-
-            _ = wf.add("plot.c", plot_c);
-        }
         exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src"),
             .files = &srcs,
