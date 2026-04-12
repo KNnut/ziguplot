@@ -1,7 +1,8 @@
 .{
     .name = .ziguplot,
     .version = "6.1.0-dev+4d53e45",
-    .minimum_zig_version = "0.16.0-dev.2682+02142a54d",
+    .fingerprint = 0xfda05bcfc75db21c,
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .gnuplot = .{
             .url = "git+https://git.code.sf.net/p/gnuplot/gnuplot-main#4d53e45ce897b3e3fe85e1144641578b8bab3b7c",
@@ -17,12 +18,12 @@
             .lazy = true,
         },
     },
-
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "deps",
         "src",
+        "LICENSE",
+        "README.md",
     },
-    .fingerprint = 0xfda05bcfc75db21c,
 }

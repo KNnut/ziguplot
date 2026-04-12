@@ -100,10 +100,6 @@ pub fn build(b: *std.Build) !void {
         lib.root_module.addCMacro("__wasm_exception_handling__", "");
     }
 
-    var threaded: std.Io.Threaded = .init(b.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
     {
         // Custom terminals
         const wf = b.addWriteFiles();
@@ -157,11 +153,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Minify `svg.trm`
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(io, "term/svg.trm", .{});
-            defer file.close(io);
+            const file = try upstream_dir.openFile(b.graph.io, "term/svg.trm", .{});
+            defer file.close(b.graph.io);
 
-            const stat = try file.stat(io);
-            var file_reader = file.reader(io, &.{});
+            const stat = try file.stat(b.graph.io);
+            var file_reader = file.reader(b.graph.io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
@@ -223,11 +219,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Modify `command.c` to disable help in Windows as well
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(io, "src/command.c", .{});
-            defer file.close(io);
+            const file = try upstream_dir.openFile(b.graph.io, "src/command.c", .{});
+            defer file.close(b.graph.io);
 
-            const stat = try file.stat(io);
-            var file_reader = file.reader(io, &.{});
+            const stat = try file.stat(b.graph.io);
+            var file_reader = file.reader(b.graph.io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
@@ -306,11 +302,11 @@ pub fn build(b: *std.Build) !void {
         {
             // Minify `mouse.c`
             const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(io, "src/mouse.c", .{});
-            defer file.close(io);
+            const file = try upstream_dir.openFile(b.graph.io, "src/mouse.c", .{});
+            defer file.close(b.graph.io);
 
-            const stat = try file.stat(io);
-            var file_reader = file.reader(io, &.{});
+            const stat = try file.stat(b.graph.io);
+            var file_reader = file.reader(b.graph.io, &.{});
             const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
 
             var size = stat.size;
