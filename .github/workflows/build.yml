@@ -46,17 +46,17 @@ jobs:
       matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
     env:
       XWIN_SDK_VERSION: 10.0.22621
-      VCLTL_VERSION: 5.2.2
+      VCLTL_VERSION: 5.3.1
       VCLTL_TARGET_VERSION: 10.0.19041.0
-      XCODE_VERSION: 26.0.1
-      MACOS_SDK_VERSION: 26.0
+      XCODE_VERSION: 26.3
+      MACOS_SDK_VERSION: 26.2
       TARGET_ARCH: ${{ matrix.arch }}
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
       OPTIMIZE_MODE: ${{ matrix.optimize }}
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup zig
         uses: mlugg/setup-zig@v2
@@ -71,7 +71,7 @@ jobs:
         run: ./.github/workflows/build.sh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.TARGET_TRIPLE }}-${{ matrix.optimize }}
           path: gnuplot-${{ env.TARGET_TRIPLE }}.*
