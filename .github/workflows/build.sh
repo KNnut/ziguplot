@@ -34,7 +34,6 @@ elif [ $TARGET_PLATFORM = macos ]; then
 elif [ $TARGET_PLATFORM = wasi ]; then
   zig_args+=(
     -Dcpu="lime1+bulk_memory+reference_types+simd128"
-    -Dmimalloc
   )
 fi
 zig build "${zig_args[@]}"
