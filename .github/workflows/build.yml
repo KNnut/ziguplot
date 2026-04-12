@@ -8,7 +8,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     env:
       ARCH: "[x86_64, aarch64]"
-      PLATFORM: "[linux-musl, windows-msvc, macos, freebsd, netbsd]"
+      PLATFORM: "[linux-musl, windows-msvc, macos, freebsd, netbsd, openbsd]"
       OPTIMIZE_MODE: "[Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]"
     steps:
       - name: Set matrix
