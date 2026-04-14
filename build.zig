@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) !void {
         "Specify extra terminals",
     ) orelse "";
     var enable_aquaterm: bool = false;
-    var enable_latex: bool = false;
 
     const vc_ltl_dir: ?[]const u8 = b.option(
         []const u8,
@@ -147,8 +146,6 @@ pub fn build(b: *std.Build) !void {
                     });
                     lib.root_module.linkFramework("Foundation", .{});
                     lib.root_module.linkFramework("AquaTerm", .{});
-                } else if (std.mem.eql(u8, term, "cetz")) {
-                    enable_latex = true;
                 } else if (!std.mem.eql(u8, term, "debug")) continue;
                 try array_list.appendSlice(b.allocator, "#include \"");
                 try array_list.appendSlice(b.allocator, term);
@@ -190,41 +187,6 @@ pub fn build(b: *std.Build) !void {
             _ = wf.add("svg.trm", bytes[0..size]);
         }
 
-        lib.root_module.addIncludePath(wf.getDirectory());
-    }
-
-    {
-        // Minify `term_api.h`
-        const upstream_dir = upstream.builder.build_root.handle;
-        const file = try upstream_dir.openFile(io, "src/term_api.h", .{});
-        defer file.close(io);
-
-        const stat = try file.stat(io);
-        var file_reader = file.reader(io, &.{});
-        const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
-
-        var array_list: std.ArrayList(u8) = .empty;
-        try array_list.appendSlice(b.allocator, &.{
-            // `TERM_IS_POSTSCRIPT` is used by `lua.trm`, `post.trm` and `pslatex.trm`
-            4,
-            // `TERM_REUSES_BOXTEXT` is used by `cairo.trm` and `pslatex.trm`
-            18,
-            // `TERM_COLORBOX_IMAGE` is used by `cairo.trm` and `qt.trm`
-            19,
-        });
-        if (!enable_latex)
-            // `TERM_IS_LATEX`
-            try array_list.append(b.allocator, 14);
-
-        var size = stat.size;
-        for (array_list.items) |num| {
-            const needle = b.fmt("(1<<{d})", .{num});
-            const diff = needle.len - 1;
-            const times = std.mem.replace(u8, bytes[0..size], needle, "0", bytes);
-            size -= diff * times;
-        }
-
-        const wf = b.addWriteFile("term_api.h", bytes[0..size]);
         lib.root_module.addIncludePath(wf.getDirectory());
     }
 
