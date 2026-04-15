@@ -633,3 +633,13 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
 
     return extra_config;
 }
+
+pub fn artifact(dependency: *std.Build.Dependency, kind: std.Build.Step.Compile.Kind) *std.Build.Step.Compile {
+    std.debug.assert(kind == .exe or kind == .lib);
+    for (dependency.builder.install_tls.step.dependencies.items) |step| {
+        const inst = step.cast(std.Build.Step.InstallArtifact) orelse continue;
+        if (std.mem.eql(u8, inst.artifact.name, "gnuplot") and inst.artifact.kind == kind)
+            return inst.artifact;
+    }
+    unreachable;
+}
