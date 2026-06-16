@@ -592,6 +592,7 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_MEMMOVE = true,
             .HAVE_MEMSET = true,
             .HAVE_TIME_T_IN_TIME_H = true,
+            .WITH_STABLE_SORT = true,
 
             .USE_POLAR_GRID = true,
             .USE_STATS = true,
@@ -610,6 +611,9 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             },
         },
     );
+
+    if (target.os.tag.isBSD())
+        extra_config.addValue("HAVE_MERGESORT", bool, true);
 
     if (target.os.tag != .wasi)
         extra_config.addValues(.{
