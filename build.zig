@@ -35,6 +35,10 @@ pub fn build(b: *std.Build) !void {
         "Enable WebAssembly exception handling",
     ) orelse target.result.cpu.arch.isWasm() and target.result.cpu.arch.isWasm();
 
+    const build_config: BuildConfig = .{
+        .stb_image = b.option(bool, "stb-image", "Enable stb image") orelse false,
+    };
+
     var cflags: std.ArrayList([]const u8) = .empty;
 
     if (target.result.cpu.arch.isWasm()) {
@@ -556,6 +560,15 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
+    if (build_config.stb_image) {
+        if (b.lazyDependency("stb", .{})) |stb_dep|
+            lib.root_module.addIncludePath(stb_dep.path(""));
+        extra_config.addValues(.{
+            .HAVE_STBI = true,
+            .HAVE_STB_IMAGE_H = true,
+        });
+    }
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
@@ -679,3 +692,7 @@ pub fn artifact(dependency: *std.Build.Dependency, kind: std.Build.Step.Compile.
     }
     unreachable;
 }
+
+const BuildConfig = struct {
+    stb_image: bool,
+};
