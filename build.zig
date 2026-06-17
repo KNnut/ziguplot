@@ -630,6 +630,7 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_STRLCPY = true,
             .HAVE_FSEEKO = true,
             .HAVE_OFF_T = true,
+            .HAVE_UNAME = true,
         });
     }
 
