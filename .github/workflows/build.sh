@@ -17,6 +17,15 @@ zig_args=(
   -Dtarget=${TARGET_TRIPLE}
   -Doptimize=${OPTIMIZE_MODE}
 )
+if [ $TARGET_PLATFORM = wasi ]; then
+  zig_args+=(
+    -Dcpu="lime1+bulk_memory+reference_types+simd128"
+  )
+else
+  zig_args+=(
+    -Dcpu=baseline
+  )
+fi
 if [ $TARGET_PLATFORM = linux-musl ]; then
   zig_args+=(
     -Dmimalloc
@@ -30,10 +39,6 @@ elif [ $TARGET_PLATFORM = macos ]; then
   zig_args+=(
     --sysroot "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
     -Dterms=aquaterm
-  )
-elif [ $TARGET_PLATFORM = wasi ]; then
-  zig_args+=(
-    -Dcpu="lime1+bulk_memory+reference_types+simd128"
   )
 fi
 zig build "${zig_args[@]}"
