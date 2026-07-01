@@ -79,10 +79,10 @@ pub fn build(b: *std.Build) !void {
     const config_h_wf = blk: {
         const required_headers = .{
             "string",    "stdlib",   "unistd",    "errno",
-            "sys/param", "sys/time", "sys/types", "limits",
-            "float",     "locale",   "math",      "malloc",
-            "time",      "stdbool",  "inttypes",  "fenv",
-            "complex",   "dirent",   "values",
+            "sys/param", "sys/time", "sys/types", "sys/wait",
+            "limits",    "float",    "locale",    "math",
+            "malloc",    "time",     "stdbool",   "inttypes",
+            "fenv",      "complex",  "dirent",    "values",
         };
 
         var array_list: std.ArrayList(u8) = .empty;
@@ -108,6 +108,10 @@ pub fn build(b: *std.Build) !void {
             // See https://learn.microsoft.com/cpp/c-runtime-library/complex-math-support
             try array_list.appendSlice(b.allocator, "#undef HAVE_COMPLEX_H\n");
         }
+
+        // WASI has no sys/wait.h
+        if (target.result.os.tag == .wasi)
+            try array_list.appendSlice(b.allocator, "#undef HAVE_SYS_WAIT_H\n");
 
         const wf = b.addWriteFile("config.h", array_list.items);
         lib.root_module.addIncludePath(wf.getDirectory());
