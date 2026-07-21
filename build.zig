@@ -594,7 +594,8 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_STRCHR = true,
             .HAVE_STRSTR = true,
             .HAVE_GETCWD = true,
-            .HAVE_USLEEP = true,
+            .HAVE_NANOSLEEP = if (target.abi == .msvc) null else true,
+            .HAVE_USLEEP = if (target.abi == .msvc) null else true,
             .HAVE_SLEEP = true,
             .HAVE_CSQRT = true,
             .HAVE_CABS = true,
@@ -611,11 +612,9 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_TIME_T_IN_TIME_H = true,
             .WITH_STABLE_SORT = true,
 
-            .USE_POLAR_GRID = true,
             .USE_STATS = true,
             .USE_WATCHPOINTS = true,
             .USE_FUNCTIONBLOCKS = true,
-            .WITH_CHI_SHAPES = true,
             .WITH_EXTRA_COORDINATE = true,
 
             .NO_GIH = true,
