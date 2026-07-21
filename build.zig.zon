@@ -9,8 +9,8 @@
             .hash = "N-V-__8AANER3gCzsHsuXir9AXCEM5fYQIQrV7pYdeGq3Fqz",
         },
         .mimalloc = .{
-            .url = "git+https://github.com/KNnut/mimalloc#b08761006329a7ae437a3f03f8c88026f53ccfb4",
-            .hash = "mimalloc-3.2.8-9DdHgYkcAADcuFuIUP1lcwR6kyy8SLxRpEv2DubYkR2a",
+            .url = "git+https://github.com/KNnut/mimalloc#058f00de02d7355731e12734c514fa70ce80dfce",
+            .hash = "mimalloc-3.4.3-9DdHgYkcAADnS_I5x6_gPw9fnp-3V0wMvD-Vz33-zTv_",
             .lazy = true,
         },
         .aquaterm = .{
