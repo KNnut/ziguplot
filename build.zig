@@ -543,8 +543,8 @@ pub fn build(b: *std.Build) !void {
     run_step.dependOn(&run_cmd.step);
 }
 
-fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const u8) *std.Build.Step.ConfigHeader {
-    const extra_config = b.addConfigHeader(
+fn addExtraConfigHeader(b: *std.Build, t: std.Target, include_path: []const u8) *std.Build.Step.ConfigHeader {
+    return b.addConfigHeader(
         .{ .include_path = include_path },
         .{
             .STDC_HEADERS = true,
@@ -559,8 +559,8 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_STRCHR = true,
             .HAVE_STRSTR = true,
             .HAVE_GETCWD = true,
-            .HAVE_NANOSLEEP = if (target.abi == .msvc) null else true,
-            .HAVE_USLEEP = if (target.abi == .msvc) null else true,
+            .HAVE_NANOSLEEP = if (t.abi == .msvc) null else true,
+            .HAVE_USLEEP = if (t.abi == .msvc) null else true,
             .HAVE_SLEEP = true,
             .HAVE_CSQRT = true,
             .HAVE_CABS = true,
@@ -575,76 +575,49 @@ fn addExtraConfigHeader(b: *std.Build, target: std.Target, include_path: []const
             .HAVE_MEMMOVE = true,
             .HAVE_MEMSET = true,
             .HAVE_TIME_T_IN_TIME_H = true,
-            .WITH_STABLE_SORT = true,
+            .HAVE_STPCPY = if (t.os.tag == .windows) null else true,
+            .HAVE_STRNDUP = if (t.os.tag == .windows) null else true,
+            .HAVE_STRLCPY = if (t.os.tag == .windows) null else true,
+            .HAVE_FSEEKO = if (t.os.tag == .windows) null else true,
+            .HAVE_OFF_T = if (t.os.tag == .windows) null else true,
+            .HAVE_UNAME = if (t.os.tag == .windows) null else true,
+            .HAVE_POPEN = if (t.os.tag == .windows) null else true,
+            .HAVE_STRCASECMP = if (t.abi == .msvc) null else true,
+            .HAVE_STRNCASECMP = if (t.abi == .msvc) null else true,
+            .HAVE_MERGESORT = if (t.os.tag.isBSD()) true else null,
 
             .USE_STATS = true,
             .USE_WATCHPOINTS = true,
             .USE_FUNCTIONBLOCKS = true,
             .WITH_EXTRA_COORDINATE = true,
+            .WITH_STABLE_SORT = true,
+            .USE_FAKEPIPES = if (t.abi == .msvc) true else null,
+            .PIPES = if (t.os.tag == .wasi) null else true,
+            .USE_MOUSE = if (t.os.tag == .wasi) null else true,
+            .READLINE = if (t.os.tag == .wasi) null else true,
+            .GNUPLOT_HISTORY = if (t.os.tag == .wasi) null else true,
+            .PIPE_IPC = if (t.os.tag == .windows) null else true,
+
+            .UNICODE = if (t.os.tag == .windows) true else null,
+            ._UNICODE = if (t.os.tag == .windows) true else null,
+            .WIN_IPC = if (t.os.tag == .windows) true else null,
+            .HAVE_GDIPLUS = if (t.os.tag == .windows) true else null,
+            .HAVE_D2D = if (t.os.tag == .windows) true else null,
+            .HAVE_D2D11 = if (t.os.tag == .windows) true else null,
+            .HAVE_PRNTVPT = if (t.os.tag == .windows) true else null,
+            .WGP_CONSOLE = if (t.os.tag == .windows) true else null,
+            .USE_WINGDI = if (t.os.tag == .windows) true else null,
 
             .NO_GIH = true,
             .HELPFILE = "",
             .SHORT_TERMLIST = true,
-            .DEFAULTTERM = switch (target.os.tag) {
+            .DEFAULTTERM = switch (t.os.tag) {
                 .wasi => "svg",
                 .windows => "windows",
                 else => "dumb",
             },
         },
     );
-
-    if (target.os.tag.isBSD())
-        extra_config.addValue("HAVE_MERGESORT", bool, true);
-
-    if (target.os.tag != .wasi)
-        extra_config.addValues(.{
-            .PIPES = true,
-            .USE_MOUSE = true,
-            .READLINE = true,
-            .GNUPLOT_HISTORY = true,
-        });
-
-    if (target.os.tag != .windows) {
-        extra_config.addValues(.{
-            .HAVE_STPCPY = true,
-            .HAVE_STRNDUP = true,
-            .HAVE_STRLCPY = true,
-            .HAVE_FSEEKO = true,
-            .HAVE_OFF_T = true,
-            .HAVE_UNAME = true,
-        });
-    }
-
-    if (target.abi == .msvc)
-        extra_config.addValues(.{
-            .USE_FAKEPIPES = true,
-        })
-    else
-        extra_config.addValues(.{
-            .HAVE_STRCASECMP = true,
-            .HAVE_STRNCASECMP = true,
-        });
-
-    if (target.os.tag == .windows)
-        extra_config.addValues(.{
-            .UNICODE = true,
-            ._UNICODE = true,
-            .WIN_IPC = true,
-            .HAVE_GDIPLUS = true,
-            .HAVE_D2D = true,
-            .HAVE_D2D11 = true,
-            .HAVE_PRNTVPT = true,
-            .WGP_CONSOLE = true,
-            .USE_WINGDI = true,
-        })
-    else
-        // Non-Windows
-        extra_config.addValues(.{
-            .HAVE_POPEN = true,
-            .PIPE_IPC = true,
-        });
-
-    return extra_config;
 }
 
 pub fn artifact(dependency: *std.Build.Dependency, kind: std.Build.Step.Compile.Kind) *std.Build.Step.Compile {
