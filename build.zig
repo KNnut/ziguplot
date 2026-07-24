@@ -204,7 +204,6 @@ pub fn build(b: *std.Build) !void {
                 .{ "TERM_TABLE_START (domterm_driver)", "#if 0\n" },
                 .{ "#define LAST_TERM domterm_driver", "\n#endif" },
                 .{ "SVG_emit_doctype)", "0)" },
-                .{ "SVG_hypertext\t", "0" },
             }) |pair| {
                 const diff = pair[0].len - pair[1].len;
                 const times = std.mem.replace(u8, bytes[0..size], pair[0], pair[1], bytes);
@@ -213,8 +212,6 @@ pub fn build(b: *std.Build) !void {
 
             inline for (.{
                 "strcmp(term->name, \"domterm\") == ",
-                "SVG_mouseable = TRUE;",
-                "SVG_standalone = TRUE;",
             }) |str| {
                 const times = std.mem.replace(u8, bytes[0..size], str, "", bytes);
                 size -= str.len * times;
