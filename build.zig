@@ -77,6 +77,7 @@ pub fn build(b: *std.Build) !void {
     }
 
     const upstream = b.dependency("gnuplot", .{ .target = target, .optimize = optimize });
+    try cflags.append(b.allocator, b.fmt("-ffile-prefix-map={s}/=", .{upstream.builder.pathFromRoot("")}));
 
     lib.root_module.addCMacro("HAVE_CONFIG_H", "");
 
@@ -333,41 +334,8 @@ pub fn build(b: *std.Build) !void {
         const srcs = .{ "gpexecute.c", "mouse.c", "plot.c", "readline.c", "xdg.c" };
 
         const wf = b.addWriteFiles();
-        inline for (srcs) |source| {
-            if (!std.mem.eql(u8, source, "mouse.c"))
-                _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
-        }
-
-        {
-            // Minify `mouse.c`
-            const upstream_dir = upstream.builder.build_root.handle;
-            const file = try upstream_dir.openFile(b.graph.io, "src/mouse.c", .{});
-            defer file.close(b.graph.io);
-
-            const stat = try file.stat(b.graph.io);
-            var file_reader = file.reader(b.graph.io, &.{});
-            const bytes = try file_reader.interface.allocRemaining(b.allocator, .limited(stat.size + 1));
-
-            var size = stat.size;
-            inline for (.{
-                .{
-                    \\fprintf(stderr, "`%s:%d oops.'\n", __FILE__, __LINE__)
-                    ,
-                    \\FPRINTF((stderr,"`%s:%d oops.'\n",__FILE__,__LINE__))
-                },
-                .{
-                    \\fprintf(stderr, "%s:%d unrecognized event type %d\n", __FILE__, __LINE__, ge->type)
-                    ,
-                    \\FPRINTF((stderr,"%s:%d unrecognized event type %d\n",__FILE__,__LINE__,ge->type))
-                },
-            }) |pair| {
-                const diff = pair[0].len - pair[1].len;
-                const times = std.mem.replace(u8, bytes, pair[0], pair[1], bytes);
-                size -= diff * times;
-            }
-
-            _ = wf.add("mouse.c", bytes[0..size]);
-        }
+        inline for (srcs) |source|
+            _ = wf.addCopyFile(upstream.path(b.pathJoin(&.{ "src", source })), source);
 
         exe.root_module.addCSourceFiles(.{
             .root = upstream.path("src"),
