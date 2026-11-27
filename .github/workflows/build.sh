@@ -20,6 +20,7 @@ zig_args=(
 if [ $TARGET_PLATFORM = wasi ]; then
   zig_args+=(
     -Dcpu="lime1+bulk_memory+reference_types+simd128"
+    -Dmimalloc
   )
 else
   zig_args+=(
