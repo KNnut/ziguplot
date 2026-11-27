@@ -18,8 +18,8 @@
             .lazy = true,
         },
         .stb = .{
-            .url = "git+https://github.com/nothings/stb#31c1ad37456438565541f4919958214b6e762fb4",
-            .hash = "N-V-__8AAN1DTgAKvlSQnjJwSg4ZY2JP5OHmzKOcA4BewA4Y",
+            .url = "git+https://github.com/nothings/stb#6b5799bae8a1fe3792691ef4b72ae26434c3e799",
+            .hash = "N-V-__8AAMNjVQBtQqFTqLXf4ajZ6COgMe1AG_STJHG4jkdj",
             .lazy = true,
         },
     },
