@@ -16,6 +16,10 @@ pub fn build(b: *std.Build) !void {
     const sysroot = b.option([]const u8, "sysroot", "System root directory");
 
     const build_config: BuildConfig = .{
+        .system_command = b.option(bool, "system-command", "Enable system()") orelse true,
+        .pipes = b.option(bool, "pipes", "Enable pipes") orelse true,
+        .history = b.option(bool, "history", "Enable history command") orelse true,
+
         .stb_image = b.option(bool, "stb-image", "Enable stb image") orelse false,
     };
 
@@ -59,11 +63,12 @@ pub fn build(b: *std.Build) !void {
 
     const config_h_wf = blk: {
         const required_headers = .{
-            "string",    "stdlib",   "unistd",    "errno",
-            "sys/param", "sys/time", "sys/types", "sys/wait",
-            "limits",    "float",    "locale",    "math",
-            "malloc",    "time",     "stdbool",   "inttypes",
-            "fenv",      "complex",  "dirent",    "values",
+            "string",    "stdlib",    "unistd",   "errno",
+            "sys/ioctl", "sys/param", "sys/time", "sys/types",
+            "sys/wait",  "limits",    "float",    "locale",
+            "math",      "malloc",    "time",     "stdbool",
+            "inttypes",  "fenv",      "complex",  "dirent",
+            "values",    "termios",   "wchar",    "stdckdint",
         };
 
         var array_list: std.ArrayList(u8) = .empty;
@@ -103,7 +108,7 @@ pub fn build(b: *std.Build) !void {
     lib.root_module.addConfigHeader(extra_config);
 
     if (target.result.abi == .msvc)
-        lib.root_module.addCMacro("__MSC__", "");
+        lib.root_module.addCMacro("ftruncate", "_chsize");
 
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
@@ -369,13 +374,13 @@ pub fn build(b: *std.Build) !void {
             "comctl32", "comdlg32", "ole32",  "msimg32",
             "shlwapi",  "winspool", "gdi32",  "gdiplus",
             "d2d1",     "d3d11",    "dwrite", "prntvpt",
+            "htmlhelp",
         }) |dll| exe.root_module.linkSystemLibrary(dll, .{});
 
         exe.subsystem = .console;
         if (target.result.abi == .msvc) {
             // Setup MSVC
-            exe.root_module.addCMacro("__MSC__", "");
-            inline for (.{ "user32", "shell32" }) |dll|
+            inline for (.{ "user32", "shell32", "advapi32" }) |dll|
                 exe.root_module.linkSystemLibrary(dll, .{});
         } else {
             // Setup MinGW
@@ -530,6 +535,21 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
+    if (!build_config.system_command)
+        extra_config.addValues(.{
+            .DISABLE_SYSTEM_COMMAND = true,
+        });
+
+    if (build_config.pipes and target.result.os.tag != .wasi)
+        extra_config.addValues(.{
+            .PIPES = true,
+        });
+
+    if (build_config.history)
+        extra_config.addValues(.{
+            .GNUPLOT_HISTORY = true,
+        });
+
     if (build_config.stb_image) {
         if (b.lazyDependency("stb", .{})) |stb_dep|
             lib.root_module.addIncludePath(stb_dep.path(""));
@@ -579,17 +599,16 @@ fn addExtraConfigHeader(b: *std.Build, t: std.Target, include_path: []const u8) 
             .HAVE_ERF = true,
             .HAVE_ERFC = true,
             .HAVE_DECL_SIGNGAM = true,
-            .HAVE_MEMCPY = true,
-            .HAVE_MEMMOVE = true,
-            .HAVE_MEMSET = true,
             .HAVE_TIME_T_IN_TIME_H = true,
+            .HAVE_SYSTEM = if (t.os.tag == .wasi) null else true,
             .HAVE_STPCPY = if (t.os.tag == .windows) null else true,
             .HAVE_STRNDUP = if (t.os.tag == .windows) null else true,
             .HAVE_STRLCPY = if (t.os.tag == .windows) null else true,
             .HAVE_FSEEKO = if (t.os.tag == .windows) null else true,
             .HAVE_OFF_T = if (t.os.tag == .windows) null else true,
             .HAVE_UNAME = if (t.os.tag == .windows) null else true,
-            .HAVE_POPEN = if (t.os.tag == .windows) null else true,
+            .HAVE_POPEN = if (t.os.tag == .windows or t.os.tag == .wasi) null else true,
+            .HAVE_TCGETATTR = if (t.os.tag == .windows) null else true,
             .HAVE_STRCASECMP = if (t.abi == .msvc) null else true,
             .HAVE_STRNCASECMP = if (t.abi == .msvc) null else true,
             .HAVE_MERGESORT = if (isBSD) true else null,
@@ -597,13 +616,10 @@ fn addExtraConfigHeader(b: *std.Build, t: std.Target, include_path: []const u8) 
             .USE_STATS = true,
             .USE_WATCHPOINTS = true,
             .USE_FUNCTIONBLOCKS = true,
-            .WITH_EXTRA_COORDINATE = true,
             .WITH_STABLE_SORT = true,
             .USE_FAKEPIPES = if (t.abi == .msvc) true else null,
-            .PIPES = if (t.os.tag == .wasi) null else true,
             .USE_MOUSE = if (t.os.tag == .wasi) null else true,
             .READLINE = if (t.os.tag == .wasi) null else true,
-            .GNUPLOT_HISTORY = if (t.os.tag == .wasi) null else true,
             .PIPE_IPC = if (t.os.tag == .windows) null else true,
 
             .UNICODE = if (t.os.tag == .windows) true else null,
@@ -639,5 +655,9 @@ pub fn artifact(dependency: *std.Build.Dependency, kind: std.Build.Step.Compile.
 }
 
 const BuildConfig = struct {
+    system_command: bool,
+    pipes: bool,
+    history: bool,
+
     stb_image: bool,
 };

@@ -1,12 +1,12 @@
 .{
     .name = .ziguplot,
-    .version = "6.1.0-dev+4d53e45",
+    .version = "6.1.0-dev+65b3034",
     .fingerprint = 0xfda05bcfc75db21c,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .gnuplot = .{
-            .url = "git+https://git.code.sf.net/p/gnuplot/gnuplot-main#28f51cf1d846706ac8cd2dbe40d9db22d74f232e",
-            .hash = "N-V-__8AANER3gCzsHsuXir9AXCEM5fYQIQrV7pYdeGq3Fqz",
+            .url = "git+https://git.code.sf.net/p/gnuplot/gnuplot-main#65b30346bb34a8372e32d61ab89945b618ad6784",
+            .hash = "N-V-__8AAIRI3gDS9JPdNp5SPauUMBHW3o_yEytErYHkt5Fe",
         },
         .mimalloc = .{
             .url = "git+https://github.com/KNnut/mimalloc#d7e3c93255e98ea5ea7100f2b98f41c9a71a23d3",
