@@ -37,7 +37,7 @@ elif [ $TARGET_PLATFORM = windows-msvc ]; then
   )
 elif [ $TARGET_PLATFORM = macos ]; then
   zig_args+=(
-    --sysroot "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
+    -Dsysroot="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MACOS_SDK_VERSION}.sdk"
     -Dterms=aquaterm
   )
 fi

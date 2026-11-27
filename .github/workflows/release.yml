@@ -26,7 +26,7 @@ jobs:
       TARGET_ARCH: ${{ matrix.arch }}
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_TRIPLE: ${{ matrix.arch }}-${{ matrix.platform }}
-      OPTIMIZE_MODE: ReleaseFast
+      OPTIMIZE_MODE: fast
     steps:
       - name: Check out repository code
         uses: actions/checkout@v7

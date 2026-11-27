@@ -2,15 +2,15 @@
     .name = .ziguplot,
     .version = "6.1.0-dev+4d53e45",
     .fingerprint = 0xfda05bcfc75db21c,
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .gnuplot = .{
             .url = "git+https://git.code.sf.net/p/gnuplot/gnuplot-main#28f51cf1d846706ac8cd2dbe40d9db22d74f232e",
             .hash = "N-V-__8AANER3gCzsHsuXir9AXCEM5fYQIQrV7pYdeGq3Fqz",
         },
         .mimalloc = .{
-            .url = "git+https://github.com/KNnut/mimalloc#058f00de02d7355731e12734c514fa70ce80dfce",
-            .hash = "mimalloc-3.4.3-9DdHgYkcAADnS_I5x6_gPw9fnp-3V0wMvD-Vz33-zTv_",
+            .url = "git+https://github.com/KNnut/mimalloc#d7e3c93255e98ea5ea7100f2b98f41c9a71a23d3",
+            .hash = "mimalloc-3.7.1-9DdHgUgZAAC2g-yOdLcZulvtjGPn9G6p0eaBivoT1Gi5",
             .lazy = true,
         },
         .aquaterm = .{

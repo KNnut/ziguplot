@@ -4,36 +4,16 @@ pub fn build(b: *std.Build) !void {
     var target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const terms: []const u8 = b.option(
-        []const u8,
-        "terms",
-        "Specify extra terminals",
-    ) orelse "";
+    const terms: []const u8 = b.option([]const u8, "terms", "Specify extra terminals") orelse "";
     var enable_aquaterm: bool = false;
 
-    const vc_ltl_dir: ?[]const u8 = b.option(
-        []const u8,
-        "vc-ltl-dir",
-        "The special TargetPlatform directory of VC-LTL",
-    );
+    const vc_ltl_dir: ?[]const u8 = b.option([]const u8, "vc-ltl-dir", "The special TargetPlatform directory of VC-LTL");
+    const xwin_dir: ?[]const u8 = b.option([]const u8, "xwin-dir", "The directory output by xwin splat");
 
-    const xwin_dir: ?[]const u8 = b.option(
-        []const u8,
-        "xwin-dir",
-        "The directory output by xwin splat",
-    );
+    const mimalloc: bool = b.option(bool, "mimalloc", "Enable mimalloc") orelse false;
 
-    const mimalloc: bool = b.option(
-        bool,
-        "mimalloc",
-        "Enable mimalloc",
-    ) orelse false;
-
-    const wasm_eh: bool = b.option(
-        bool,
-        "wasm-eh",
-        "Enable WebAssembly exception handling",
-    ) orelse target.result.cpu.arch.isWasm() and target.result.cpu.arch.isWasm();
+    const wasm_eh: bool = (b.option(bool, "wasm-eh", "Enable WebAssembly exception handling") orelse target.result.cpu.arch.isWasm()) and target.result.cpu.arch.isWasm();
+    const sysroot = b.option([]const u8, "sysroot", "System root directory");
 
     const build_config: BuildConfig = .{
         .stb_image = b.option(bool, "stb-image", "Enable stb image") orelse false,
@@ -43,17 +23,13 @@ pub fn build(b: *std.Build) !void {
 
     if (target.result.cpu.arch.isWasm()) {
         // https://codeberg.org/ziglang/zig/issues/31436
-        target.query.cpu_features_add.removeFeature(@intFromEnum(std.Target.wasm.Feature.exception_handling));
+        target.query.cpu_features_add.removeFeature(@backingInt(std.Target.wasm.Feature.exception_handling));
         if (wasm_eh) {
             try cflags.appendSlice(b.allocator, &.{
-                "-mllvm",
-                "-wasm-enable-sjlj",
-                "-mllvm",
-                "-wasm-use-legacy-eh=false",
-                "-Xclang",
-                "-target-feature",
-                "-Xclang",
-                "+exception-handling",
+                "-mllvm",  "-wasm-enable-sjlj",
+                "-mllvm",  "-wasm-use-legacy-eh=false",
+                "-Xclang", "-target-feature",
+                "-Xclang", "+exception-handling",
             });
         }
     }
@@ -69,15 +45,15 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    if (optimize != .Debug) {
+    if (optimize != .debug) {
         lib.lto = if (target.result.ofmt != .macho and !wasm_eh) .thin else .none;
         lib.root_module.strip = true;
         if (target.result.os.tag != .windows)
             lib.root_module.unwind_tables = .none;
     }
 
-    const upstream = b.dependency("gnuplot", .{ .target = target, .optimize = optimize });
-    try cflags.append(b.allocator, b.fmt("-ffile-prefix-map={s}/=", .{upstream.builder.pathFromRoot("")}));
+    const upstream = b.dependency("gnuplot", .{});
+    try cflags.append(b.allocator, b.fmt("-ffile-prefix-map={s}/=", .{try upstream.builder.root.toString(b.allocator)}));
 
     lib.root_module.addCMacro("HAVE_CONFIG_H", "");
 
@@ -131,12 +107,37 @@ pub fn build(b: *std.Build) !void {
 
     if (target.result.os.tag == .wasi) {
         lib.root_module.addCMacro("_WASI_EMULATED_SIGNAL", "");
-        // https://codeberg.org/ziglang/zig/issues/31436
-        if (wasm_eh)
+        if (wasm_eh) {
+            // https://codeberg.org/ziglang/zig/issues/31436
             lib.root_module.addCSourceFile(.{
-                .file = .{ .cwd_relative = try b.graph.zig_lib_directory.join(b.allocator, &.{ "libc", "wasi", "libc-top-half", "musl", "src", "setjmp", "wasm32", "rt.c" }) },
+                .file = .{
+                    .relative = .{
+                        .base = .zig_lib,
+                        .sub_path = b.pathJoin(&.{ "libc", "wasi", "libc-top-half", "musl", "src", "setjmp", "wasm32", "rt.c" }),
+                    },
+                },
                 .flags = cflags.items,
             });
+            // https://codeberg.org/ziglang/zig/issues/30977
+            // https://github.com/WebAssembly/wasi-libc/pull/772
+            const wf = b.addWriteFiles();
+            lib.root_module.addCSourceFile(.{
+                .file = wf.add("rt.c",
+                    \\#if __clang_major__ >= 22
+                    \\__asm__(".globl __c_longjmp\n"
+                    \\#if defined(__wasm32__)
+                    \\        ".tagtype __c_longjmp i32\n"
+                    \\#elif defined(__wasm64__)
+                    \\        ".tagtype __c_longjmp i64\n"
+                    \\#else
+                    \\#error "Unsupported Wasm architecture"
+                    \\#endif
+                    \\        "__c_longjmp:\n");
+                    \\#endif
+                ),
+                .flags = cflags.items,
+            });
+        }
     }
 
     {
@@ -191,7 +192,7 @@ pub fn build(b: *std.Build) !void {
 
         {
             // Minify `svg.trm`
-            const upstream_dir = upstream.builder.build_root.handle;
+            const upstream_dir = upstream.builder.root;
             const file = try upstream_dir.openFile(b.graph.io, "term/svg.trm", .{});
             defer file.close(b.graph.io);
 
@@ -254,7 +255,7 @@ pub fn build(b: *std.Build) !void {
 
         {
             // Modify `command.c` to disable help in Windows as well
-            const upstream_dir = upstream.builder.build_root.handle;
+            const upstream_dir = upstream.builder.root;
             const file = try upstream_dir.openFile(b.graph.io, "src/command.c", .{});
             defer file.close(b.graph.io);
 
@@ -314,7 +315,7 @@ pub fn build(b: *std.Build) !void {
     exe.use_llvm = use_llvm;
     exe.use_lld = use_llvm;
 
-    if (optimize != .Debug) {
+    if (optimize != .debug) {
         exe.lto = if (target.result.ofmt != .macho and !wasm_eh) .thin else .none;
         exe.root_module.strip = true;
         if (target.result.os.tag != .windows)
@@ -370,7 +371,7 @@ pub fn build(b: *std.Build) !void {
             "d2d1",     "d3d11",    "dwrite", "prntvpt",
         }) |dll| exe.root_module.linkSystemLibrary(dll, .{});
 
-        exe.subsystem = .Console;
+        exe.subsystem = .console;
         if (target.result.abi == .msvc) {
             // Setup MSVC
             exe.root_module.addCMacro("__MSC__", "");
@@ -480,10 +481,11 @@ pub fn build(b: *std.Build) !void {
                 const libc_txt = wf.add("libc.txt", b.fmt(
                     \\include_dir={s}
                     \\sys_include_dir={s}
+                    \\cc_dir=
                     \\crt_dir={s}
                     \\msvc_lib_dir={s}
                     \\kernel32_lib_dir={s}
-                    \\gcc_dir=
+                    \\darwin_sdk_dir=
                 , .{
                     include_dir,
                     sys_include_dir,
@@ -496,30 +498,33 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
-    if (b.sysroot) |sysroot| {
+
+    if (sysroot) |root| {
         // Set LibC file
-        const include_dir = b.pathJoin(&.{ sysroot, "usr", "include" });
+        const include_dir = b.pathJoin(&.{ root, "usr", "include" });
         const sys_include_dir = include_dir;
-        const crt_dir = b.pathJoin(&.{ sysroot, "usr", "lib" });
+        const crt_dir = b.pathJoin(&.{ root, "usr", "lib" });
 
         const wf = b.addWriteFiles();
         const libc_txt = wf.add("libc.txt", b.fmt(
             \\include_dir={s}
             \\sys_include_dir={s}
+            \\cc_dir=
             \\crt_dir={s}
             \\msvc_lib_dir=
             \\kernel32_lib_dir=
-            \\gcc_dir=
+            \\darwin_sdk_dir={s}
         , .{
             include_dir,
             sys_include_dir,
             crt_dir,
+            root,
         }));
         for (compiles) |compile|
             compile.setLibCFile(libc_txt);
 
         if (enable_aquaterm) {
-            const sys_frameworks_dir = b.pathJoin(&.{ sysroot, "System", "Library", "Frameworks" });
+            const sys_frameworks_dir = b.pathJoin(&.{ root, "System", "Library", "Frameworks" });
             inline for (.{ lib, exe }) |compile|
                 compile.root_module.addSystemFrameworkPath(.{ .cwd_relative = sys_frameworks_dir });
         }
@@ -536,14 +541,17 @@ pub fn build(b: *std.Build) !void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 }
 
 fn addExtraConfigHeader(b: *std.Build, t: std.Target, include_path: []const u8) *std.Build.Step.ConfigHeader {
+    const isBSD = t.os.tag.isDarwin() or
+        t.os.tag == .freebsd or
+        t.os.tag == .openbsd or
+        t.os.tag == .netbsd or
+        t.os.tag == .dragonfly;
     return b.addConfigHeader(
         .{ .include_path = include_path },
         .{
@@ -584,7 +592,7 @@ fn addExtraConfigHeader(b: *std.Build, t: std.Target, include_path: []const u8) 
             .HAVE_POPEN = if (t.os.tag == .windows) null else true,
             .HAVE_STRCASECMP = if (t.abi == .msvc) null else true,
             .HAVE_STRNCASECMP = if (t.abi == .msvc) null else true,
-            .HAVE_MERGESORT = if (t.os.tag.isBSD()) true else null,
+            .HAVE_MERGESORT = if (isBSD) true else null,
 
             .USE_STATS = true,
             .USE_WATCHPOINTS = true,
